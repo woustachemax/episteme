@@ -69,9 +69,11 @@ export const authOptions: NextAuthOptions = {
       return session;
     }
   },
-  pages: {
-    signIn: "/signin"
-  },
+  // pages: {
+  //   signIn: "/signin"
+  // },
+
+  //till i start w frontend this will be commented out
   session: {
     strategy: "jwt"
   },

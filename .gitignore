@@ -42,3 +42,5 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# prompts.ts ---os-ing this for now but dont get too excited bitches if i see promise imma get that bag

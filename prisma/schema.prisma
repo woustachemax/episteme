@@ -21,10 +21,20 @@ model User{
   provider Provider
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  search Search[]
 }
 
 enum Provider{
   GOOGLE
-  // TWITTER
+  // TWITTER //not doing this, this time
   CREDENTIALS
+}
+
+model Search{
+  id String @id @default(uuid())
+  User User? @relation(fields: [userId], references: [id])
+  userId String?
+  ipAddress String
+  query String
+  createdAt DateTime @default(now())
 }
