@@ -22,12 +22,16 @@ export async function callPythonAnalyzer(content: string) {
             if (code === 0) {
                 try {
                     resolve(JSON.parse(result));
-                } catch (e) {
+                } catch {
                     reject(new Error('Failed to parse Python output'));
                 }
             } else {
                 reject(new Error(error || 'Python script failed'));
             }
+        });
+
+        python.on('error', (err) => {
+            reject(new Error(`Failed to start Python process: ${err.message}`));
         });
     });
 }
@@ -53,12 +57,16 @@ export async function callPythonFactChecker(content: string) {
             if (code === 0) {
                 try {
                     resolve(JSON.parse(result));
-                } catch (e) {
+                } catch {
                     reject(new Error('Failed to parse Python output'));
                 }
             } else {
                 reject(new Error(error || 'Python script failed'));
             }
+        });
+
+        python.on('error', (err) => {
+            reject(new Error(`Failed to start Python process: ${err.message}`));
         });
     });
 }

@@ -4,7 +4,6 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs"
 import client from "@/lib/db";
 // import { userSchema } from "@/types/schema";
-// import { email } from "zod/v4";
 // import { NextResponse } from "next/server";
 import { Session } from "next-auth";
 
@@ -18,7 +17,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "text", placeholder: "sid@example.com" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials: any): Promise<any> {
+      async authorize(credentials: Record<string, string> | undefined): Promise<any> {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }
@@ -40,9 +39,11 @@ export const authOptions: NextAuthOptions = {
           if (!passwordMatch) throw new Error("Incorrect password");
 
           return user;
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error("Authorize Error:", e);
-          throw new Error(e.message || "Authorization failed");
+          const errorMessage = e instanceof Error ? e.message : "Authorization failed";
+          throw new Error(errorMessage);
+
         }
       }
     }),

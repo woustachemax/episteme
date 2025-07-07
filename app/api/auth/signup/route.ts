@@ -4,7 +4,7 @@ import client from "@/lib/db"
 import { userSchema } from "@/types/schema"
 import z from 'zod'
 
-export async function POST(req: NextRequest, res: NextResponse){
+export async function POST(req: NextRequest){
     const body: z.infer<typeof userSchema> = await req.json();
     const parsedSchema = await userSchema.safeParse(body)
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, res: NextResponse){
        }
 
     try{
-        const save = await client.user.create({
+        await client.user.create({
             data:{
                 name: body.name,
                 email: body.email,

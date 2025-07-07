@@ -11,8 +11,9 @@ import AuthModal from "./AuthModal";
 type SearchResponse = {
   query: string;
   content: string;
-  analysis?: Record<string, any>;
-  factCheck?: Record<string, any>;
+  analysis?: Record<string, unknown>;  
+  factCheck?: Record<string, unknown>; 
+
 };
 
 type AuthModalState = {

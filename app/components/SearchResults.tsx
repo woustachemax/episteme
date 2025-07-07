@@ -1,12 +1,12 @@
 import { motion } from 'framer-motion';
-import { ExternalLink, Share2, Bookmark, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 type AnalysisResult = {
   error?: string;
   names?: string[];
   dates?: string[];
   word_count?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type FactCheckResult = {
@@ -15,7 +15,7 @@ type FactCheckResult = {
   bias_words_found?: string[];
   confidence_score?: number;
   total_claims?: number;
-  [key: string]: any;
+[ key: string]: unknown;
 };
 
 type SearchResultsData = {

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Globe, Menu, X, User, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { SearchBox } from "./SearchBoc";
 import { signOut } from "next-auth/react";
+import Image from 'next/image';
 
 type UserType = {
   name?: string | null;
@@ -73,9 +74,11 @@ export const Header = ({
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800/50 rounded-lg">
                   {user.image ? (
-                    <img 
+                    <Image 
                       src={user.image} 
                       alt={user.name || "User"} 
+                      width={24}
+                      height={24}
                       className="w-6 h-6 rounded-full"
                     />
                   ) : (
