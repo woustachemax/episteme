@@ -1,10 +1,11 @@
-# Welcome to Episteme
+# Welcome to Episteme 📖
 
 > An AI-powered, comprehensive platform for unbiased, relevant information on everything and everyone that matters.
 
-## Live Demo 
+## Live Demo 📺
 
 Click [Here](https://www.loom.com/share/507adb5d3a7041929ac556cf2487f196?sid=2a77cff9-f323-4fe1-9bf3-20ca7c5d0554) for the Live Demo.
+
 ## 🎯 Vision
 
 Episteme challenges information bias by combining AI content generation with real-time fact-checking to create neutral, comprehensive articles on any topic. Think Wikipedia meets modern AI - but faster, more current, and truly unbiased.
