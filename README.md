@@ -44,7 +44,7 @@ Episteme challenges information bias by combining AI content generation with rea
 │                 │    │                  │    │                 │
 │   • Search UI   │    │   • /api/search  │    │   • Analyzer    │
 │   • Auth Forms  │    │   • /api/auth    │    │   • Fact Check  │
-│   • Article View│    │   • Rate Limiting│    │   • Content Gen │
+│   • Article View│    │   • Rate Limiting│    │    │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                        │                        │
          │                        ▼                        │
