@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
           if (!user) throw new Error("No user found with this email");
 
           if (!user.password) {
-            throw new Error("This account doesn't have a passwor. Please sign in with Google.");
+            throw new Error("This account doesn't have a password. Please sign in with Google.");
           }
 
           const passwordMatch = await bcrypt.compare(credentials.password, user.password);
@@ -43,7 +43,6 @@ export const authOptions: NextAuthOptions = {
           console.error("Authorize Error:", e);
           const errorMessage = e instanceof Error ? e.message : "Authorization failed";
           throw new Error(errorMessage);
-
         }
       }
     }),

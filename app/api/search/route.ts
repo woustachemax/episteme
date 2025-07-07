@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
                 ipAddress: ip,
                 query
             });
-        } catch (error) {
+        } catch {
             console.log("rate limit err");
         }
 
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
         let analysis = null;
         try {
             analysis = await callPythonAnalyzer(result.text);
-        } catch (error: unknown) {
+        } catch {
             console.log("analyzer err");
             analysis = { error: "Failed to analyze content" };
         }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
         let factCheck = null;
         try {
             factCheck = await callPythonFactChecker(result.text);
-        } catch (error: unknown) {
+        } catch {
             console.log("fact check err");
             factCheck = { error: "Failed to perform fact check" };
         }
