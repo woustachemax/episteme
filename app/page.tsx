@@ -1,10 +1,5 @@
 
-export default function Home() {
-  return (
-      <>
-        <div>
-            Hi from page.tsx
-        </div>
-      </>
-  );
+import EpistemeApp from "./components/EpistemeApp";
+export default function HomePage() {
+  return <EpistemeApp />;
 }
