@@ -135,20 +135,6 @@ Episteme challenges information bias by combining AI content generation with rea
 - **Organizations**: Background, milestones, current status
 - **Concepts**: Definition, applications, related topics
 
-## 🐍 Python Services
-
-The Python backend provides advanced content analysis:
-
-```python
-# Content Analysis
-python backend/python/services/article_analyzer.py --analyze "content"
-
-# Fact Checking
-python backend/python/services/fact_checker.py --verify "claims"
-
-# Content Synthesis
-python backend/python/services/content_synthesizer.py --synthesize "sources"
-```
 
 ## 🙏 Acknowledgments
 
