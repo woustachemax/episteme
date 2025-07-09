@@ -4,75 +4,51 @@ import { generateText } from "ai";
 import { SEARCH_SYSTEM_PROMPT } from "@/lib/prompts";
 import { canSearch, recordSearch } from "@/lib/rate-limit";
 import { getToken } from "next-auth/jwt";
-import { spawn } from "child_process";
-import path from "path";
 
-function callPythonAnalyzer(content: string) {
-    return new Promise((resolve, reject) => {
-        const pythonPath = path.join(process.cwd(), "python/services/content_analyzer.py");
-        const python = spawn("python3", [pythonPath, "--content", content]);
-
-        let result = "";
-        let error = "";
-
-        python.stdout.on("data", (data) => {
-            result += data.toString();
+async function callPythonAnalyzer(content: string) {
+    try {
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000';
+            
+        const response = await fetch(`${baseUrl}/api/python/analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
         });
-
-        python.stderr.on("data", (data) => {
-            error += data.toString();
-        });
-
-        python.on("close", (code) => {
-            if (code === 0) {
-                try {
-                    resolve(JSON.parse(result));
-                } catch {
-                    reject(new Error("Failed to parse Python output (analyzer)"));
-                }
-            } else {
-                reject(new Error(error || "Python analyzer script failed"));
-            }
-        });
-
-        python.on("error", (err) => {
-            reject(new Error(`Failed to start Python process: ${err.message}`));
-        });
-    });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.log("analyzer err:", error);
+        return { error: "Failed to analyze content" };
+    }
 }
 
-function callPythonFactChecker(content: string) {
-    return new Promise((resolve, reject) => {
-        const pythonPath = path.join(process.cwd(), "python/services/fact_checker.py");
-        const python = spawn("python3", [pythonPath, "--content", content]);
-
-        let result = "";
-        let error = "";
-
-        python.stdout.on("data", (data) => {
-            result += data.toString();
+async function callPythonFactChecker(content: string) {
+    try {
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000';
+            
+        const response = await fetch(`${baseUrl}/api/python/fact-check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
         });
-
-        python.stderr.on("data", (data) => {
-            error += data.toString();
-        });
-
-        python.on("close", (code) => {
-            if (code === 0) {
-                try {
-                    resolve(JSON.parse(result));
-                } catch {
-                    reject(new Error("Failed to parse Python output (fact-checker)"));
-                }
-            } else {
-                reject(new Error(error || "Python fact-checker script failed"));
-            }
-        });
-
-        python.on("error", (err) => {
-            reject(new Error(`Failed to start Python process: ${err.message}`));
-        });
-    });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.log("fact check err:", error);
+        return { error: "Failed to perform fact check" };
+    }
 }
 
 export async function POST(req: NextRequest) {
@@ -125,21 +101,10 @@ export async function POST(req: NextRequest) {
             prompt: query
         });
 
-        let analysis = null;
-        try {
-            analysis = await callPythonAnalyzer(result.text);
-        } catch {
-            console.log("analyzer err");
-            analysis = { error: "Failed to analyze content" };
-        }
-
-        let factCheck = null;
-        try {
-            factCheck = await callPythonFactChecker(result.text);
-        } catch {
-            console.log("fact check err");
-            factCheck = { error: "Failed to perform fact check" };
-        }
+        const [analysis, factCheck] = await Promise.all([
+            callPythonAnalyzer(result.text),
+            callPythonFactChecker(result.text)
+        ]);
 
         console.log("success");
         return NextResponse.json({
