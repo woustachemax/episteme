@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from 'framer-motion';
-import { Globe, Menu, X, User, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { Menu, X, User, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { SearchBox } from "./SearchBoc";
 import { signOut } from "next-auth/react";
 import Image from 'next/image';
@@ -34,8 +34,9 @@ export const Header = ({
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' });
-  };
 
+  };
+  
   return (
     <motion.header 
       initial={{ y: -20, opacity: 0 }}

@@ -68,31 +68,41 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           onClick={handleBackdropClick}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-slate-900 rounded-xl p-6 w-full max-w-md border border-slate-700"
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="bg-zinc-900 rounded-lg p-8 w-full max-w-md border border-zinc-800"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-xl font-medium text-white">
                 {mode === 'signin' ? 'Sign In' : 'Sign Up'}
               </h2>
-              <button onClick={onClose} className="text-slate-400 hover:text-white">
-                <X size={20} />
-              </button>
+              <motion.button 
+                onClick={onClose} 
+                className="text-gray-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <X size={18} />
+              </motion.button>
             </div>
 
-            <button
+            <motion.button
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading || isLoading}
-              className="w-full mb-4 py-3 px-4 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center space-x-2 font-medium"
+              className="w-full mb-6 py-3 px-4 bg-white text-black rounded-md hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 font-medium"
+              whileHover={{ scale: isGoogleLoading || isLoading ? 1 : 1.01 }}
+              whileTap={{ scale: isGoogleLoading || isLoading ? 1 : 0.99 }}
+              transition={{ duration: 0.2 }}
             >
               {isGoogleLoading ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
                 <>
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -104,68 +114,79 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
                   <span>Continue with Google</span>
                 </>
               )}
-            </button>
+            </motion.button>
 
-            <div className="relative flex items-center justify-center mb-4">
+            <div className="relative flex items-center justify-center mb-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-600"></div>
+                <div className="w-full border-t border-zinc-700"></div>
               </div>
-              <div className="relative bg-slate-900 px-3 text-sm text-slate-400">
+              <div className="relative bg-zinc-900 px-4 text-sm text-gray-400">
                 or
               </div>
             </div>
 
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {mode === 'signup' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Name</label>
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Name</label>
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors"
+                    placeholder="Enter your name"
                   />
-                </div>
+                </motion.div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Email</label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors"
+                  placeholder="Enter your email"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors"
+                  placeholder="Enter your password"
                 />
               </div>
 
-              <button
-                onClick={handleSubmit}
+              <motion.button
+                type="submit"
                 disabled={isLoading || isGoogleLoading}
-                className="w-full py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 text-white font-medium"
+                className="w-full py-3 bg-white text-black rounded-md hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium mt-6"
+                whileHover={{ scale: isLoading || isGoogleLoading ? 1 : 1.01 }}
+                whileTap={{ scale: isLoading || isGoogleLoading ? 1 : 0.99 }}
+                transition={{ duration: 0.2 }}
               >
                 {isLoading ? (
-                  <Loader2 size={16} className="animate-spin mx-auto" />
+                  <Loader2 size={18} className="animate-spin mx-auto" />
                 ) : (
                   mode === 'signin' ? 'Sign In' : 'Sign Up'
                 )}
-              </button>
-            </div>
+              </motion.button>
+            </form>
           </motion.div>
         </motion.div>
       )}
