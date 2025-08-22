@@ -38,30 +38,32 @@ export const Header = ({
 
   return (
     <motion.header 
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50"
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-zinc-800"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors"
+              className="lg:hidden p-2 rounded-md bg-zinc-900 hover:bg-zinc-800 transition-colors text-gray-400 hover:text-white"
             >
-              {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                <Globe size={18} className="text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <motion.div 
+              className="flex items-center space-x-3"
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.2 }}
+            >
+              <span className="text-lg font-medium text-white">
                 Episteme
               </span>
-            </div>
+            </motion.div>
           </div>
 
-          <div className="hidden md:flex items-center space-x-4 flex-1 max-w-2xl mx-8">
+          <div className="hidden md:flex items-center space-x-4 flex-1 max-w-xl mx-8">
             <SearchBox 
               onSearch={onSearch} 
               value={searchQuery} 
@@ -69,47 +71,65 @@ export const Header = ({
             />
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {user ? (
               <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                  {user.image ? (
-                    <Image 
-                      src={user.image} 
-                      alt={user.name || "User"} 
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full"
-                    />
-                  ) : (
-                    <User size={16} />
-                  )}
-                  <span className="text-sm">{user.name || user.email || "User"}</span>
-                </div>
-                <button 
-                  onClick={handleSignOut}
-                  className="flex items-center space-x-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg transition-colors"
+                <motion.div 
+                  className="flex items-center space-x-2 px-3 py-2 bg-zinc-900 rounded-md border border-zinc-800"
+                  whileHover={{ backgroundColor: "rgb(39 39 42)" }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <LogOut size={16} />
-                  <span className="hidden sm:inline">Sign Out</span>
-                </button>
+                  {user.image ? (
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Image 
+                        src={user.image} 
+                        alt={user.name || "User"} 
+                        width={20}
+                        height={20}
+                        className="w-5 h-5 rounded-full"
+                      />
+                    </motion.div>
+                  ) : (
+                    <User size={14} className="text-gray-400" />
+                  )}
+                  <span className="text-sm text-gray-300">{user.name || user.email || "User"}</span>
+                </motion.div>
+                <motion.button 
+                  onClick={handleSignOut}
+                  className="flex items-center space-x-2 px-3 py-2 bg-zinc-900 hover:bg-red-500/10 rounded-md transition-colors text-gray-400 hover:text-red-400 border border-zinc-800 hover:border-red-500/20"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LogOut size={14} />
+                  <span className="hidden sm:inline text-sm">Sign Out</span>
+                </motion.button>
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <button 
+                <motion.button 
                   onClick={onSignIn}
-                  className="flex items-center space-x-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg transition-colors"
+                  className="flex items-center space-x-2 px-3 py-2 bg-zinc-900 hover:bg-zinc-800 rounded-md transition-colors text-gray-400 hover:text-white border border-zinc-800 hover:border-zinc-700"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <LogIn size={16} />
-                  <span className="hidden sm:inline">Sign In</span>
-                </button>
-                <button 
+                  <LogIn size={14} />
+                  <span className="hidden sm:inline text-sm">Sign In</span>
+                </motion.button>
+                <motion.button 
                   onClick={onSignUp}
-                  className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                  className="flex items-center space-x-2 px-3 py-2 bg-white text-black rounded-md hover:bg-gray-100 transition-colors border"
+                  whileHover={{ scale: 1.02, backgroundColor: "rgb(243 244 246)" }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <UserPlus size={16} />
-                  <span className="hidden sm:inline">Sign Up</span>
-                </button>
+                  <UserPlus size={14} />
+                  <span className="hidden sm:inline text-sm font-medium">Sign Up</span>
+                </motion.button>
               </div>
             )}
           </div>

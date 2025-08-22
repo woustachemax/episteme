@@ -40,25 +40,25 @@ export const SearchBox = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: isWelcome ? 0.6 : 0 }}
-      className={`relative ${isWelcome ? 'max-w-2xl mx-auto' : 'flex-1 max-w-2xl'}`}
+      transition={{ delay: isWelcome ? 0.3 : 0, duration: 0.5, ease: "easeOut" }}
+      className={`relative ${isWelcome ? 'max-w-xl mx-auto' : 'flex-1 max-w-xl'}`}
     >
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
         <input
           type="text"
           value={query}
           onChange={handleChange}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
           placeholder="Search for knowledge..."
-          className={`w-full pl-12 pr-16 py-4 bg-slate-800/50 border border-slate-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent text-white placeholder-slate-400 backdrop-blur-xl ${isWelcome ? 'text-lg' : ''}`}
+          className={`w-full pl-12 pr-14 py-3 bg-zinc-900 border border-zinc-800 rounded-lg focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors ${isWelcome ? 'text-base' : 'text-sm'}`}
         />
         <button
           onClick={handleSearch}
           disabled={!query.trim() || isLoading}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <Loader2 size={16} className="animate-spin" />
