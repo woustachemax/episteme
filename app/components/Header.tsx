@@ -20,6 +20,7 @@ type HeaderProps = {
   user?: UserType | null;
   onSignIn: () => void;
   onSignUp: () => void;
+  onLogoClick: () => void; 
 };
 
 export const Header = ({
@@ -28,13 +29,13 @@ export const Header = ({
   setSearchQuery,
   user,
   onSignIn,
-  onSignUp
+  onSignUp,
+  onLogoClick
 }: HeaderProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' });
-
   };
   
   return (
@@ -53,15 +54,14 @@ export const Header = ({
             >
               {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
-            <motion.div 
-              className="flex items-center space-x-3"
+            <motion.button 
+              onClick={onLogoClick}
+              className="flex items-center space-x-3 text-lg font-medium text-white hover:text-gray-300 transition-colors"
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
             >
-              <span className="text-lg font-medium text-white">
-                Episteme
-              </span>
-            </motion.div>
+              Episteme
+            </motion.button>
           </div>
 
           <div className="hidden md:flex items-center space-x-4 flex-1 max-w-xl mx-8">

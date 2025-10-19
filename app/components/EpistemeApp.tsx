@@ -110,6 +110,12 @@ export default function EpistemeApp() {
     }
   };
 
+  const handleLogoClick = () => {
+    setHasSearched(false);
+    setSearchResults(null);
+    setSearchQuery('');
+  };
+
   return (
     <div className="min-h-screen bg-black text-white relative">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -170,6 +176,7 @@ export default function EpistemeApp() {
               user={session?.user || null}
               onSignIn={() => setAuthModal({ isOpen: true, mode: 'signin' })}
               onSignUp={() => setAuthModal({ isOpen: true, mode: 'signup' })}
+              onLogoClick={handleLogoClick}
             />
             <SearchResults results={searchResults} isLoading={isSearching} />
           </motion.div>
