@@ -135,6 +135,96 @@ Episteme challenges information bias by combining AI content generation with rea
 - **Organizations**: Background, milestones, current status
 - **Concepts**: Definition, applications, related topics
 
+## 🆕 V2 Updates
+
+### 🔍 Real-Time Web Search Integration
+- **Tavily API** integration for live web data fetching
+- Multi-source aggregation (Crunchbase, LinkedIn, company websites, TechCrunch)
+- Automatic exclusion of unreliable sources (Reddit, Quora, Wikipedia for startups)
+- 3+ targeted search queries per topic for comprehensive coverage
+
+### 🧠 Intelligent Entity Resolution
+- **Automatic domain detection** - checks if `.com/.ai/.io/.co` domains exist
+- **Smart disambiguation** - distinguishes "Virio" (AI startup) from "Vireo" (bird species)
+- **Context-aware searching** - runs targeted queries based on entity type:
+  - Companies: `site:crunchbase.com`, `site:linkedin.com/company`, `"[query]" startup funding`
+  - People: Career, achievements, recent news
+  - Concepts: Technical definitions, applications, recent developments
+- **Zero manual whitelisting** - works for ANY new company, startup, or topic dynamically
+
+### 📊 Enhanced Content Generation
+- **Entity-specific prompts** - tailored article structures for companies vs people vs concepts
+- **SEO-optimized titles** - format: `[Company]: [What they do] for [Target Market]`
+- **Proper markdown rendering** - clickable links, bold text, formatted headers
+- **Source prioritization** - newer sources (2023-2025) weighted higher
+- **No hallucination** - strict requirement to use only verified search results
+
+### 🎯 Startup-Focused Features
+- **Funding detection** - automatically finds Series A/B/C information
+- **Team/leadership extraction** - identifies founders and key executives
+- **Product/service mapping** - describes actual offerings from company sources
+- **Market positioning** - competitive landscape and target audience
+
+### 🛡️ Anti-Hallucination Safeguards
+- Pre-search entity classification (company/person/concept/ambiguous)
+- Multiple verification sources required per claim
+- Explicit instructions: "Do not invent dates, founders, or details"
+- Confidence scoring system for entity type detection
+
+## 📦 New Dependencies
+
+```bash
+npm install react-markdown
+
+TAVILY_API_KEY=tvly-...
+```
+
+## 🔧 V2 Architecture Changes
+
+```
+┌─────────────────┐    ┌──────────────────────┐    ┌─────────────────┐
+│   Search Query  │───►│  Entity Resolver     │───►│  Tavily API     │
+│   "virio"       │    │  • Domain check      │    │  Multi-query    │
+│                 │    │  • Type detection    │    │  search         │
+└─────────────────┘    │  • Context builder   │    └─────────────────┘
+                       └──────────────────────┘              │
+                                  │                          │
+                                  ▼                          ▼
+                       ┌──────────────────────┐    ┌─────────────────┐
+                       │   GPT-4 with         │◄───│  Search Results │
+                       │   Enhanced Prompt    │    │  (verified)     │
+                       │   • Entity context   │    └─────────────────┘
+                       │   • SEO keywords     │
+                       │   • Structure guide  │
+                       └──────────────────────┘
+                                  │
+                                  ▼
+                       ┌──────────────────────┐
+                       │   Article Output     │
+                       │   • Markdown format  │
+                       │   • Clickable links  │
+                       │   • Source citations │
+                       └──────────────────────┘
+```
+
+## 🚀 V2 Usage Examples
+
+
+### Ambiguous Term
+```
+Input: "meta"
+✓ Detects: meta.com exists (company) + general concept
+✓ Prioritizes: Company information over philosophical concept
+✓ Generates: Separate sections if both are relevant
+```
+
+### Traditional Topic
+```
+Input: "photosynthesis"
+✓ Detects: No company domain, concept entity
+✓ Searches: Scientific sources, educational content
+✓ Generates: Technical explanation with recent research
+```
 
 ## 🙏 Acknowledgments
 

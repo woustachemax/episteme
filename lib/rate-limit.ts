@@ -1,8 +1,8 @@
 import client from "@/lib/db";
 import { subHours } from "date-fns";
 
-const ANON_LIMIT = 2;
-const USER_LIMIT = 5;
+const ANON_LIMIT = 10;
+const USER_LIMIT = 15;
 
 export async function getSearchCount(identifier: string, isLoggedIn: boolean): Promise<number> {
   const since = subHours(new Date(), 24);

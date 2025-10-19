@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 type AnalysisResult = {
   error?: string;
@@ -74,18 +75,59 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
           >
             <h2 className="text-xl font-medium mb-6 text-white">Search Results</h2>
             <div className="prose prose-invert max-w-none">
-              <div 
-                className="text-gray-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ 
-                  __html: results.content
-                    .replace(/## (.+)/g, '<h2 class="text-lg font-medium text-white mt-8 mb-4">$1</h2>')
-                    .replace(/# (.+)/g, '<h1 class="text-xl font-medium text-white mt-10 mb-6">$1</h1>')
-                    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-medium">$1</strong>')
-                    .replace(/- \*\*(.+?)\*\*/g, '• <strong class="text-white font-medium">$1</strong>')
-                    .replace(/\n- /g, '\n• ')
-                    .replace(/\n/g, '<br>')
+              <ReactMarkdown
+                components={{
+                  h1: ({ children }) => (
+                    <h1 className="text-2xl font-semibold text-white mt-8 mb-4">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-xl font-semibold text-white mt-6 mb-3">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-lg font-medium text-white mt-4 mb-2">{children}</h3>
+                  ),
+                  p: ({ children }) => (
+                    <p className="text-gray-300 leading-relaxed mb-4">{children}</p>
+                  ),
+                  a: ({ href, children }) => (
+                    <a 
+                      href={href} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline transition-colors"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="space-y-2 mb-4 ml-4">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="space-y-2 mb-4 ml-4 list-decimal">{children}</ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-gray-300 leading-relaxed">• {children}</li>
+                  ),
+                  strong: ({ children }) => (
+                    <strong className="text-white font-semibold">{children}</strong>
+                  ),
+                  em: ({ children }) => (
+                    <em className="text-gray-200 italic">{children}</em>
+                  ),
+                  code: ({ children }) => (
+                    <code className="bg-zinc-800 text-blue-300 px-1.5 py-0.5 rounded text-sm">
+                      {children}
+                    </code>
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-zinc-700 pl-4 italic text-gray-400 my-4">
+                      {children}
+                    </blockquote>
+                  ),
                 }}
-              />
+              >
+                {results.content}
+              </ReactMarkdown>
             </div>
           </motion.div>
 

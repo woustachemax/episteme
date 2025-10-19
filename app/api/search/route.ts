@@ -4,6 +4,8 @@ import { generateText } from "ai";
 import { SEARCH_SYSTEM_PROMPT } from "@/lib/prompts";
 import { canSearch, recordSearch } from "@/lib/rate-limit";
 import { getToken } from "next-auth/jwt";
+import { searchWeb } from "@/lib/search-service";
+import { resolveEntity } from "@/lib/entity-resolver";
 
 function analyzeContent(content: string) {
     try {
@@ -105,11 +107,42 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
         }
 
-        console.log("calling openai");
+        console.log("searching web for:", query);
+        let searchResults: string;
+        
+        console.log("resolving entity type...");
+        const entityInfo = await resolveEntity(query);
+        console.log("Entity resolved:", entityInfo.type, "confidence:", entityInfo.confidence);
+        
+        try {
+            searchResults = await searchWeb(query, entityInfo.sources);
+            console.log("got search results, length:", searchResults.length);
+        } catch (error) {
+            console.error("Search failed:", error);
+            return NextResponse.json(
+                { error: "Failed to fetch web search results. Please try again." },
+                { status: 500 }
+            );
+        }
+
+        const enhancedPrompt = `Topic: ${query}
+
+        ENTITY CLASSIFICATION:
+        - Type: ${entityInfo.type}
+        - Confidence: ${entityInfo.confidence}
+        - Specific Context: ${entityInfo.context}
+        ${entityInfo.keywords.length > 0 ? `- SEO Keywords to include: ${entityInfo.keywords.join(', ')}` : ''}
+
+        REAL-TIME WEB SEARCH RESULTS:
+        ${searchResults}
+
+        Generate a comprehensive, factually accurate, SEO-optimized Wikipedia-style article based on the entity type and verified sources above.`;
+
+        console.log("calling openai with real search data");
         const result = await generateText({
             model: openai("gpt-4o-mini"),
             system: SEARCH_SYSTEM_PROMPT,
-            prompt: query
+            prompt: enhancedPrompt
         });
 
         console.log("analyzing");
@@ -121,11 +154,12 @@ export async function POST(req: NextRequest) {
             content: result.text,
             query,
             analysis,
-            factCheck
+            factCheck,
+            sources_count: searchResults.split('SOURCE').length - 1 
         });
 
     } catch (error) {
-        console.log("err cus of api");
+        console.error("API error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }
