@@ -124,9 +124,9 @@ Episteme challenges information bias by combining AI content generation with rea
 4. View structured content with proper citations
 
 ### Authentication
-- **Anonymous**: 2 searches per day
-- **Google OAuth**: 5 searches per day
-- **Manual Signup**: 5 searches per day
+- **Anonymous**: 10 searches per day
+- **Google OAuth**: 15 searches per day
+- **Manual Signup**: 15 searches per day
 
 ### Content Types Supported
 - **People**: Biography, achievements, recent updates
