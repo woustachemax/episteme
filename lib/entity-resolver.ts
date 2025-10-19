@@ -1,5 +1,5 @@
 interface EntityCheckResult {
-    type: 'company' | 'person' | 'concept' | 'ambiguous';
+    type: 'company' | 'person' | 'concept' | 'technology';
     confidence: number;
     context: string;
     sources: string[];
@@ -38,61 +38,76 @@ async function checkDomainExists(query: string): Promise<string | null> {
     return null;
 }
 
-function buildCompanyContext(query: string, domain: string): EntityCheckResult {
-    return {
-        type: 'company',
-        confidence: 0.9,
-        context: `${query} is a technology company or startup. Official website: https://${domain}. Focus on finding recent information about their products, services, team, funding, and market position.`,
-        sources: [
-            `https://${domain}`,
-            `site:crunchbase.com ${query}`,
-            `site:linkedin.com/company ${query}`,
-            `site:techcrunch.com ${query}`,
-            `"${query}" startup`,
-            `"${query}" company funding`
-        ],
-        keywords: ['startup', 'company', 'B2B', 'SaaS', 'technology', 'funding', 'Series A']
-    };
-}
-
-function buildAmbiguousContext(query: string): EntityCheckResult {
-    return {
-        type: 'ambiguous',
-        confidence: 0.5,
-        context: `The term "${query}" may refer to multiple entities. Prioritize recent technology companies, startups, or software products over historical or biological references. Look for .com/.ai/.io domains, Crunchbase listings, and recent news articles.`,
-        sources: [
-            `"${query}" company`,
-            `"${query}" startup`,
-            `"${query}" technology`,
-            `site:crunchbase.com ${query}`,
-            query
-        ],
-        keywords: ['company', 'startup', 'technology', 'software']
-    };
-}
-
 export async function resolveEntity(query: string): Promise<EntityCheckResult> {
-    const normalizedQuery = query.toLowerCase().trim();
+    const lower = query.toLowerCase().trim();
     
-    const domain = await checkDomainExists(normalizedQuery);
+    if (/streamer|youtuber|influencer|athlete|singer|actor|rapper|artist|player|coach/i.test(lower)) {
+        return {
+            type: 'person',
+            confidence: 0.9,
+            context: `${query} is a person. Focus on biographical info, career, and achievements.`,
+            sources: [`"${query}" biography`, `"${query}" career`, `"${query}" who is`, query],
+            keywords: ['biography', 'career', 'achievements']
+        };
+    }
     
+    if (/^[a-z]+[0-9]+[a-z0-9_]*$/i.test(query) && query.length > 7) {
+        return {
+            type: 'person',
+            confidence: 0.85,
+            context: `${query} is likely a content creator or online personality. Focus on their content, audience, and career.`,
+            sources: [`"${query}" streamer`, `"${query}" youtuber`, `"${query}" who is`, query],
+            keywords: ['content creator', 'online personality']
+        };
+    }
+    
+    const domain = await checkDomainExists(lower);
     if (domain) {
-        return buildCompanyContext(query, domain);
+        return {
+            type: 'company',
+            confidence: 0.95,
+            context: `${query} is a company with website: https://${domain}. Focus on products, services, founding, and recent news.`,
+            sources: [
+                `https://${domain}`,
+                `site:crunchbase.com ${query}`,
+                `site:linkedin.com/company ${query}`,
+                `"${query}" company`,
+                query
+            ],
+            keywords: ['company', 'startup', 'technology', 'products']
+        };
     }
-
-    const hasCapitalization = /^[A-Z][a-z]+$/.test(query);
-    const isSingleWord = !query.includes(' ');
-    const isShortName = query.length <= 15;
     
-    if (hasCapitalization && isSingleWord && isShortName) {
-        return buildAmbiguousContext(query);
+    if (/inc|corp|ltd|llc|technologies|systems|solutions/i.test(lower)) {
+        return {
+            type: 'company',
+            confidence: 0.85,
+            context: `${query} appears to be a company. Focus on business info, products, and leadership.`,
+            sources: [`"${query}" company`, `site:crunchbase.com ${query}`, query],
+            keywords: ['company', 'business']
+        };
     }
-
+    
+    if (/^[A-Z]{2,}$/.test(query) || /\.js$|\.py$|api|framework/i.test(lower)) {
+        return {
+            type: 'technology',
+            confidence: 0.8,
+            context: `${query} is a technology or technical concept. Focus on how it works and use cases.`,
+            sources: [`"${query}" technology`, `"what is ${query}"`, query],
+            keywords: ['technology', 'technical']
+        };
+    }
+    
     return {
         type: 'concept',
-        confidence: 0.7,
-        context: `General topic: ${query}`,
-        sources: [query],
+        confidence: 0.6,
+        context: `${query} - Analyze search results to determine if this is a person, company, or concept.`,
+        sources: [
+            `"${query}" company`,
+            `"${query}" who is`,
+            `"${query}" startup`,
+            query
+        ],
         keywords: []
     };
 }
