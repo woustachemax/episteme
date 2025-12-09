@@ -9,14 +9,10 @@ interface TavilyResponse {
 
 export async function searchWeb(query: string, entityContext?: string[]): Promise<string> {
     try {
-        const searchQueries = entityContext && entityContext.length > 0 
-            ? entityContext 
-            : [`"${query}"`];
+        const searchQueries = [`"${query}"`];
 
-        const allResults: Array<{ title: string; url: string; content: string; score: number }> = [];
-
-        for (const searchQuery of searchQueries.slice(0, 3)) {
-            const response = await fetch('https://api.tavily.com/search', {
+        const searchPromises = searchQueries.map(searchQuery => 
+            fetch('https://api.tavily.com/search', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -24,9 +20,9 @@ export async function searchWeb(query: string, entityContext?: string[]): Promis
                 body: JSON.stringify({
                     api_key: process.env.TAVILY_API_KEY,
                     query: searchQuery,
-                    search_depth: 'advanced',
+                    search_depth: 'basic', 
                     include_answer: false,
-                    max_results: 5,
+                    max_results: 8, 
                     include_domains: [],
                     exclude_domains: [
                         'reddit.com',
@@ -35,16 +31,26 @@ export async function searchWeb(query: string, entityContext?: string[]): Promis
                         'wikipedia.org'
                     ]
                 })
-            });
+            }).then(async response => {
+                if (!response.ok) {
+                    console.error(`Tavily API error for query "${searchQuery}":`, response.status);
+                    return null;
+                }
+                const data: TavilyResponse = await response.json();
+                return data.results;
+            }).catch(err => {
+                console.error(`Search failed for "${searchQuery}":`, err);
+                return null;
+            })
+        );
 
-            if (!response.ok) {
-                console.error(`Tavily API error for query "${searchQuery}":`, response.status);
-                continue;
-            }
-
-            const data: TavilyResponse = await response.json();
-            allResults.push(...data.results);
-        }
+        const resultsArrays = await Promise.all(searchPromises);
+        
+        const allResults = resultsArrays
+            .filter((results): results is Array<{ title: string; url: string; content: string; score: number }> => 
+                results !== null
+            )
+            .flat();
 
         if (allResults.length === 0) {
             throw new Error('No search results found');

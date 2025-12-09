@@ -73,6 +73,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
+        if (!process.env.OPENAI_API_KEY) {
+            console.log("no openai key");
+            return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+        }
+
         const token = await getToken({ req });
         const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ||
                    req.headers.get("x-real-ip") ||
@@ -82,9 +87,13 @@ export async function POST(req: NextRequest) {
         const isLoggedIn = Boolean(userId);
         const identifier = userId || ip;
 
-        try {
-            const { allowed, remaining } = await canSearch(identifier, isLoggedIn);
+        const [rateLimitResult, entityInfo] = await Promise.allSettled([
+            canSearch(identifier, isLoggedIn),
+            resolveEntity(query)
+        ]);
 
+        if (rateLimitResult.status === 'fulfilled') {
+            const { allowed, remaining } = rateLimitResult.value;
             if (!allowed) {
                 console.log('rate limited');
                 return NextResponse.json(
@@ -92,30 +101,24 @@ export async function POST(req: NextRequest) {
                     { status: 429 }
                 );
             }
-
-            await recordSearch({
-                userId,
-                ipAddress: ip,
-                query
-            });
-        } catch {
-            console.log("rate limit broke");
+        } else {
+            console.log("rate limit check failed, allowing request");
         }
 
-        if (!process.env.OPENAI_API_KEY) {
-            console.log("no openai key");
-            return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
-        }
+        recordSearch({ userId, ipAddress: ip, query }).catch(err => 
+            console.error("Failed to record search:", err)
+        );
+
+        const entity = entityInfo.status === 'fulfilled' 
+            ? entityInfo.value 
+            : { type: 'concept', confidence: 0, context: '', keywords: [], sources: [] };
+        
+        console.log("Entity resolved:", entity.type, "confidence:", entity.confidence);
 
         console.log("searching web for:", query);
         let searchResults: string;
-        
-        console.log("resolving entity type...");
-        const entityInfo = await resolveEntity(query);
-        console.log("Entity resolved:", entityInfo.type, "confidence:", entityInfo.confidence);
-        
         try {
-            searchResults = await searchWeb(query, entityInfo.sources);
+            searchResults = await searchWeb(query, entity.sources);
             console.log("got search results, length:", searchResults.length);
         } catch (error) {
             console.error("Search failed:", error);
@@ -128,10 +131,10 @@ export async function POST(req: NextRequest) {
         const enhancedPrompt = `Topic: ${query}
 
         ENTITY CLASSIFICATION:
-        - Type: ${entityInfo.type}
-        - Confidence: ${entityInfo.confidence}
-        - Specific Context: ${entityInfo.context}
-        ${entityInfo.keywords.length > 0 ? `- SEO Keywords to include: ${entityInfo.keywords.join(', ')}` : ''}
+        - Type: ${entity.type}
+        - Confidence: ${entity.confidence}
+        - Specific Context: ${entity.context}
+        ${entity.keywords.length > 0 ? `- SEO Keywords to include: ${entity.keywords.join(', ')}` : ''}
 
         REAL-TIME WEB SEARCH RESULTS:
         ${searchResults}
@@ -146,8 +149,10 @@ export async function POST(req: NextRequest) {
         });
 
         console.log("analyzing");
-        const analysis = analyzeContent(result.text);
-        const factCheck = factCheckContent(result.text);
+        const [analysis, factCheck] = await Promise.all([
+            Promise.resolve(analyzeContent(result.text)),
+            Promise.resolve(factCheckContent(result.text))
+        ]);
 
         console.log("done");
         return NextResponse.json({
