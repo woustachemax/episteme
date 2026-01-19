@@ -69,20 +69,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
-        const normalizedQuery = await normalizeQuery(query);
+        let normalizedQuery: string;
+        try {
+            normalizedQuery = await normalizeQuery(query);
+        } catch (error) {
+            console.error("Query normalization failed, using original query:", error);
+            normalizedQuery = query.trim().toLowerCase();
+        }
 
-        const cachedArticle = await db.article.findUnique({
-            where: { query: normalizedQuery },
-            include: {
-                suggestions: {
-                    where: { status: 'APPROVED' },
-                    orderBy: { createdAt: 'desc' }
+        let cachedArticle = null;
+        try {
+            cachedArticle = await db.article.findUnique({
+                where: { query: normalizedQuery },
+                include: {
+                    suggestions: {
+                        where: { status: 'APPROVED' },
+                        orderBy: { createdAt: 'desc' }
+                    }
                 }
-            }
-        }).catch(err => {
+            });
+        } catch (err) {
             console.error("Database error fetching article:", err);
-            return null;
-        });
+        }
 
         if (cachedArticle) {
             return NextResponse.json({
@@ -97,10 +105,20 @@ export async function POST(req: NextRequest) {
         }
 
         if (!process.env.OPENAI_API_KEY) {
+            console.error("OPENAI_API_KEY not configured");
             return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
         }
 
-        const token = await getToken({ req });
+        if (!process.env.TAVILY_API_KEY) {
+            console.error("TAVILY_API_KEY not configured");
+            return NextResponse.json({ error: "Search API key not configured" }, { status: 500 });
+        }
+
+        const token = await getToken({ req }).catch(err => {
+            console.error("Token error:", err);
+            return null;
+        });
+        
         const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ||
                    req.headers.get("x-real-ip") ||
                    "127.0.0.1";
@@ -134,11 +152,18 @@ export async function POST(req: NextRequest) {
 
         let searchResults: string;
         try {
-            searchResults = await searchWeb(normalizedQuery, entity.sources);
+            const searchTimeout = new Promise<string>((_, reject) => 
+                setTimeout(() => reject(new Error('Search timeout after 30 seconds')), 30000)
+            );
+            searchResults = await Promise.race([
+                searchWeb(normalizedQuery, entity.sources),
+                searchTimeout
+            ]);
         } catch (error) {
-            console.error("Search failed:", error);
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.error("Search failed:", errorMsg, error);
             return NextResponse.json(
-                { error: "Failed to fetch web search results. Please try again." },
+                { error: `Failed to fetch web search results: ${errorMsg}` },
                 { status: 500 }
             );
         }
@@ -193,9 +218,11 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error) {
-        console.error("API error:", error);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        console.error("API error:", errorMsg, errorStack);
         return NextResponse.json(
-            { error: "Internal server error" },
+            { error: `Internal server error: ${errorMsg}` },
             { status: 500 }
         );
     }

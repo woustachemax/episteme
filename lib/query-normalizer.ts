@@ -28,7 +28,9 @@ export async function normalizeQuery(query: string): Promise<string> {
   const searchWord = words[0];
   
   try {
-    const matchingArticles = await db.article.findMany({
+    await db.$connect().catch(() => {});
+    
+    const dbQuery = db.article.findMany({
       where: {
         query: {
           contains: searchWord,
@@ -39,6 +41,12 @@ export async function normalizeQuery(query: string): Promise<string> {
       orderBy: { createdAt: 'desc' },
       take: 50
     });
+    
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Query normalization timeout')), 5000)
+    );
+    
+    const matchingArticles = await Promise.race([dbQuery, timeoutPromise]);
     
     if (matchingArticles.length > 0) {
       const fullNames = matchingArticles
@@ -56,7 +64,7 @@ export async function normalizeQuery(query: string): Promise<string> {
       }
     }
   } catch (error) {
-    console.error('Error normalizing query:', error);
+    console.error('Error normalizing query, using original:', error);
   }
   
   return normalized;
