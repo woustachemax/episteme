@@ -41,6 +41,8 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
     const handleTextSelection = () => {
       const selectedText = window.getSelection()?.toString();
       if (selectedText && selectedText.length > 3 && results) {
+        const storageKey = `selectedText_${results.query}`;
+        localStorage.setItem(storageKey, selectedText.trim());
         setSuggestionsOpen(true);
       }
     };

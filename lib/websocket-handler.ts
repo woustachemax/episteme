@@ -38,10 +38,8 @@ async function handleSearchRequest(ws: WebSocket, query: string) {
   try {
     ws.send(JSON.stringify({ type: 'status', message: 'Starting search...' }));
 
-    // Send search status
     ws.send(JSON.stringify({ type: 'status', message: 'Resolving entity...' }));
     
-    // Entity resolution happens here
     const entityRes = await fetch('http://localhost:3000/api/entity-resolve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

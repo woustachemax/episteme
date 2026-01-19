@@ -3,6 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 html, body {
+  font-family: 'Times New Roman', Times, serif;
   overflow-y: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -14,6 +15,7 @@ body::-webkit-scrollbar {
 }
 
 * {
+  font-family: 'Times New Roman', Times, serif;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

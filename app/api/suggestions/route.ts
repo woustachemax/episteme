@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
         }
 
         const token = await getToken({ req });
-        const userId = token?.id as string | undefined;
+        if (!token || !token.id) {
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+        const userId = token.id as string;
 
         const article = await db.article.findUnique({
             where: { query: articleQuery }

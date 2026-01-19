@@ -3,8 +3,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs"
 import client from "@/lib/db";
-// import { userSchema } from "@/types/schema";
-// import { NextResponse } from "next/server";
 import { Session } from "next-auth";
 
 
@@ -69,11 +67,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     }
   },
-  // pages: {
-  //   signIn: "/signin"
-  // },
-
-  //till i start w frontend this will be commented out
   session: {
     strategy: "jwt"
   },

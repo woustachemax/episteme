@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Send, X, TrendingUp } from 'lucide-react';
+import { useSession, signIn } from 'next-auth/react';
 
 type Suggestion = {
   id: string;
@@ -29,6 +29,7 @@ export const SuggestionsModal = ({
   isOpen,
   onClose
 }: SuggestionsModalProps) => {
+  const { data: session } = useSession();
   const [selectedText, setSelectedText] = useState('');
   const [newText, setNewText] = useState('');
   const [reason, setReason] = useState('');
@@ -36,6 +37,7 @@ export const SuggestionsModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
 
   const handleFetchSuggestions = async () => {
     setFetchError(null);
@@ -53,15 +55,18 @@ export const SuggestionsModal = ({
   useEffect(() => {
     if (isOpen) {
       handleFetchSuggestions();
+      const storageKey = `selectedText_${articleQuery}`;
+      const storedText = localStorage.getItem(storageKey);
+      if (storedText) {
+        setSelectedText(storedText);
+      } else {
+        const selected = window.getSelection()?.toString() || '';
+        if (selected && selected.length > 3) {
+          setSelectedText(selected.trim());
+        }
+      }
     }
   }, [isOpen, articleQuery]);
-
-  const handleTextSelection = () => {
-    const selected = window.getSelection()?.toString() || '';
-    if (selected) {
-      setSelectedText(selected);
-    }
-  };
 
   const handleSubmitSuggestion = async () => {
     if (!selectedText || !newText || !reason) {
@@ -69,7 +74,13 @@ export const SuggestionsModal = ({
       return;
     }
 
+    if (!session) {
+      setAuthError(true);
+      return;
+    }
+
     setIsLoading(true);
+    setAuthError(false);
     try {
       const response = await fetch('/api/suggestions', {
         method: 'POST',
@@ -82,6 +93,11 @@ export const SuggestionsModal = ({
         })
       });
 
+      if (response.status === 401) {
+        setAuthError(true);
+        return;
+      }
+
       if (response.ok) {
         setSubmitted(true);
         setSelectedText('');
@@ -89,9 +105,13 @@ export const SuggestionsModal = ({
         setReason('');
         setTimeout(() => setSubmitted(false), 3000);
         await handleFetchSuggestions();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setFetchError(errorData.error || 'Failed to submit suggestion');
       }
     } catch (error) {
       console.error('Error submitting suggestion:', error);
+      setFetchError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -121,9 +141,9 @@ export const SuggestionsModal = ({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors p-1"
+            className="text-gray-500 hover:text-white transition-colors p-1 text-2xl font-bold"
           >
-            <X size={24} />
+            ×
           </button>
         </div>
 
@@ -152,31 +172,47 @@ export const SuggestionsModal = ({
             </motion.div>
           )}
 
+          {authError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-950/30 border border-red-900 text-red-300 p-4 rounded-lg"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Authentication required</p>
+                  <p className="text-sm text-red-300/70 mt-1">Please sign in to submit suggestions</p>
+                </div>
+                <button
+                  onClick={() => signIn()}
+                  className="ml-4 bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                >
+                  Sign In
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Left column - Submission form */}
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-white">Propose an Edit</h3>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-3">
-                  1. Select text to change
+                  1. Selected text
                 </label>
-                <div
-                  onMouseUp={handleTextSelection}
-                  className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 text-gray-300 max-h-32 overflow-hidden cursor-text text-sm leading-relaxed"
-                >
-                  {content.substring(0, 300)}...
-                  <p className="text-xs text-gray-600 mt-3">Highlight text to select</p>
-                </div>
-                {selectedText && (
+                {selectedText ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="mt-2 p-3 bg-zinc-900 border border-zinc-800 rounded-lg"
+                    className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg"
                   >
-                    <p className="text-xs text-gray-500 mb-1">Selected text:</p>
-                    <p className="text-sm text-white font-medium">"{selectedText.substring(0, 100)}{selectedText.length > 100 ? '...' : ''}"</p>
+                    <p className="text-sm text-white leading-relaxed">"{selectedText}"</p>
                   </motion.div>
+                ) : (
+                  <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg text-gray-500 text-sm">
+                    No text selected. Select text from the article to suggest changes.
+                  </div>
                 )}
               </div>
 
@@ -187,7 +223,7 @@ export const SuggestionsModal = ({
                 <textarea
                   value={newText}
                   onChange={(e) => setNewText(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700 focus:ring-1 focus:ring-gray-800 transition-all"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-gray-400 transition-colors"
                   placeholder="Enter the corrected or updated text"
                   rows={3}
                 />
@@ -201,25 +237,26 @@ export const SuggestionsModal = ({
                   type="text"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-gray-700 focus:ring-1 focus:ring-gray-800 transition-all"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-gray-400 transition-colors"
                   placeholder="e.g., Updated statistics, corrected typo, recent news"
                 />
               </div>
 
               <button
                 onClick={handleSubmitSuggestion}
-                disabled={isLoading || !selectedText || !newText || !reason}
-                className="w-full bg-white hover:bg-gray-100 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-200 active:scale-95"
+                disabled={isLoading || !selectedText || !newText || !reason || !session}
+                className={`w-full font-semibold py-3 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                  !session 
+                    ? 'bg-white hover:bg-gray-100 text-zinc-900' 
+                    : 'bg-white hover:bg-gray-100 disabled:bg-gray-700 disabled:cursor-not-allowed text-black'
+                }`}
               >
-                <Send size={18} />
-                {isLoading ? 'Submitting...' : 'Submit Suggestion'}
+                {!session ? 'Sign in required to submit suggestions' : isLoading ? 'Submitting...' : 'Submit Suggestion'}
               </button>
             </div>
 
-            {/* Right column - Community suggestions */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={20} className="text-white" />
+              <div>
                 <h3 className="text-lg font-semibold text-white">Community Suggestions</h3>
               </div>
 
@@ -237,7 +274,7 @@ export const SuggestionsModal = ({
                       key={sugg.id}
                       initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition-colors"
+                      className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
                     >
                       <div className="flex justify-between items-start mb-3">
                         <span className={`text-xs font-semibold uppercase px-2 py-1 rounded ${

@@ -6,6 +6,7 @@ import { canSearch, recordSearch } from "@/lib/rate-limit";
 import { getToken } from "next-auth/jwt";
 import { searchWeb } from "@/lib/search-service";
 import { resolveEntity } from "@/lib/entity-resolver";
+import { normalizeQuery } from "@/lib/query-normalizer";
 import db from "@/lib/db";
 function analyzeContent(content: string) {
     try {
@@ -68,8 +69,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
+        const normalizedQuery = await normalizeQuery(query);
+
         const cachedArticle = await db.article.findUnique({
-            where: { query },
+            where: { query: normalizedQuery },
             include: {
                 suggestions: {
                     where: { status: 'APPROVED' },
@@ -84,7 +87,7 @@ export async function POST(req: NextRequest) {
         if (cachedArticle) {
             return NextResponse.json({
                 content: cachedArticle.content,
-                query,
+                query: normalizedQuery,
                 analysis: cachedArticle.analysis,
                 factCheck: cachedArticle.factCheck,
                 sources_count: cachedArticle.sourcesCount,
@@ -108,7 +111,7 @@ export async function POST(req: NextRequest) {
 
         const [rateLimitResult, entityInfo] = await Promise.allSettled([
             canSearch(identifier, isLoggedIn),
-            resolveEntity(query)
+            resolveEntity(normalizedQuery)
         ]);
 
         if (rateLimitResult.status === 'fulfilled') {
@@ -121,7 +124,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        recordSearch({ userId, ipAddress: ip, query }).catch(err => 
+        recordSearch({ userId, ipAddress: ip, query: normalizedQuery }).catch(err => 
             console.error("Failed to record search:", err)
         );
 
@@ -131,7 +134,7 @@ export async function POST(req: NextRequest) {
 
         let searchResults: string;
         try {
-            searchResults = await searchWeb(query, entity.sources);
+            searchResults = await searchWeb(normalizedQuery, entity.sources);
         } catch (error) {
             console.error("Search failed:", error);
             return NextResponse.json(
@@ -140,7 +143,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const enhancedPrompt = `Topic: ${query}
+        const enhancedPrompt = `Topic: ${normalizedQuery}
 
         ENTITY CLASSIFICATION:
         - Type: ${entity.type}
@@ -171,7 +174,7 @@ export async function POST(req: NextRequest) {
 
         await db.article.create({
             data: {
-                query,
+                query: normalizedQuery,
                 content: result.text,
                 analysis,
                 factCheck,
@@ -181,7 +184,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             content: result.text,
-            query,
+            query: normalizedQuery,
             analysis,
             factCheck,
             sources_count: sourcesCount,

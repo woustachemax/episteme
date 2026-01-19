@@ -1,4 +1,7 @@
--- CreateTable Article
+-- CreateEnum
+CREATE TYPE "SuggestionStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateTable
 CREATE TABLE "Article" (
     "id" TEXT NOT NULL,
     "query" TEXT NOT NULL,
@@ -12,7 +15,7 @@ CREATE TABLE "Article" (
     CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable ArticleSuggestion
+-- CreateTable
 CREATE TABLE "ArticleSuggestion" (
     "id" TEXT NOT NULL,
     "articleId" TEXT NOT NULL,
@@ -20,7 +23,7 @@ CREATE TABLE "ArticleSuggestion" (
     "oldText" TEXT NOT NULL,
     "newText" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "status" "SuggestionStatus" NOT NULL DEFAULT 'PENDING',
     "votes" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

@@ -46,14 +46,13 @@ export const SearchBox = ({
       className={`relative ${isWelcome ? 'max-w-xl mx-auto' : 'flex-1 max-w-xl'}`}
     >
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" size={18} />
         <input
           type="text"
           value={query}
           onChange={handleChange}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
           placeholder="Search for knowledge..."
-          className={`w-full pl-12 pr-14 py-3 bg-zinc-900 border border-zinc-800 rounded-lg focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors ${isWelcome ? 'text-base' : 'text-sm'}`}
+          className={`w-full pl-4 pr-14 py-3 bg-zinc-900 border border-zinc-800 rounded-lg focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors ${isWelcome ? 'text-base' : 'text-sm'}`}
         />
         <button
           onClick={handleSearch}
