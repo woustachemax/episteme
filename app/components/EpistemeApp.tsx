@@ -38,44 +38,37 @@ export default function EpistemeApp() {
   console.log("Session status:", status, "User:", session?.user);
 
   const handleSearch = async (query: string) => {
-    console.log("Search initiated with query:", query);
     setIsSearching(true);
     setHasSearched(true);
     setSearchQuery(query);
 
     try {
-      const response = await fetch('/api/search', {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+      const response = await fetch('/api/search-stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ query }),
+        signal: controller.signal
       });
 
-      console.log("Response details:", {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      });
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API Error Response:", {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
         throw new Error(`Search failed: ${response.status} - ${errorText}`);
       }
 
-      const data: SearchResponse = await response.json();
-      console.log("Search results received:", data);
+      const data = await response.json();
       setSearchResults(data);
     } catch (error) {
-      console.error('Search error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
       setSearchResults({
         query,
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+        content: `Error: ${errorMsg}`,
         analysis: { error: "Search failed" },
         factCheck: { error: "Search failed" }
       });

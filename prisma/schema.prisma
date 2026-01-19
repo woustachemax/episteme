@@ -22,6 +22,7 @@ model User{
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   search Search[]
+  suggestions ArticleSuggestion[]
 }
 
 enum Provider{
@@ -37,4 +38,37 @@ model Search{
   ipAddress String
   query String
   createdAt DateTime @default(now())
+}
+
+model Article {
+  id String @id @default(uuid())
+  query String @unique
+  content String @db.Text
+  analysis Json
+  factCheck Json
+  sourcesCount Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  suggestions ArticleSuggestion[]
+}
+
+model ArticleSuggestion {
+  id String @id @default(uuid())
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId String
+  author User? @relation(fields: [userId], references: [id])
+  userId String?
+  oldText String @db.Text
+  newText String @db.Text
+  reason String
+  status SuggestionStatus @default(PENDING)
+  votes Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

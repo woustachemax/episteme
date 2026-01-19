@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-
+import { useState, useEffect } from 'react';
+import { SuggestionsModal } from './SuggestionsModal';
 type AnalysisResult = {
   error?: string;
   names?: string[];
@@ -24,6 +25,8 @@ type SearchResultsData = {
   content: string;
   analysis?: AnalysisResult;
   factCheck?: FactCheckResult;
+  cached?: boolean;
+  suggestions?: unknown[];
 };
 
 type SearchResultsProps = {
@@ -32,6 +35,20 @@ type SearchResultsProps = {
 };
 
 export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleTextSelection = () => {
+      const selectedText = window.getSelection()?.toString();
+      if (selectedText && selectedText.length > 3 && results) {
+        setSuggestionsOpen(true);
+      }
+    };
+
+    document.addEventListener('mouseup', handleTextSelection);
+    return () => document.removeEventListener('mouseup', handleTextSelection);
+  }, [results]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -73,7 +90,15 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
             transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
             className="bg-zinc-900 rounded-lg p-8 border border-zinc-800"
           >
-            <h2 className="text-xl font-medium mb-6 text-white">Search Results</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-medium text-white">Search Results</h2>
+              {results.cached && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-700 text-emerald-300 text-xs font-medium rounded-md">
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                  Cached
+                </span>
+              )}
+            </div>
             <div className="prose prose-invert max-w-none">
               <ReactMarkdown
                 components={{
@@ -130,6 +155,13 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
               </ReactMarkdown>
             </div>
           </motion.div>
+
+          <SuggestionsModal
+            articleQuery={results.query}
+            content={results.content}
+            isOpen={suggestionsOpen}
+            onClose={() => setSuggestionsOpen(false)}
+          />
 
           {results.analysis && (
             <motion.div
