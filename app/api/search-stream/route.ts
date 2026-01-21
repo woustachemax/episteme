@@ -109,10 +109,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
         }
 
-        if (!process.env.TAVILY_API_KEY) {
-            console.error("TAVILY_API_KEY not configured");
-            return NextResponse.json({ error: "Search API key not configured" }, { status: 500 });
-        }
 
         const token = await getToken({ req }).catch(err => {
             console.error("Token error:", err);
@@ -153,22 +149,30 @@ export async function POST(req: NextRequest) {
         let searchResults: string;
         let usedWebSearch = true;
         
-        try {
-            const searchTimeout = new Promise<string>((_, reject) => 
-                setTimeout(() => reject(new Error('Search timeout after 30 seconds')), 30000)
-            );
-            searchResults = await Promise.race([
-                searchWeb(normalizedQuery, entity.sources),
-                searchTimeout
-            ]);
-        } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            console.error("Web search failed:", errorMsg, error);
+        if (!process.env.TAVILY_API_KEY) {
             usedWebSearch = false;
             searchResults = `[Web search unavailable - using model knowledge only] 
 Query: ${normalizedQuery}
 Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Note: Use your training data and real-time knowledge to provide current information.`;
+        } else {
+            try {
+                const searchTimeout = new Promise<string>((_, reject) => 
+                    setTimeout(() => reject(new Error('Search timeout after 30 seconds')), 30000)
+                );
+                searchResults = await Promise.race([
+                    searchWeb(normalizedQuery, entity.sources),
+                    searchTimeout
+                ]);
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+                console.error("Web search failed:", errorMsg, error);
+                usedWebSearch = false;
+                searchResults = `[Web search unavailable - using model knowledge only] 
+Query: ${normalizedQuery}
+Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Note: Use your training data and real-time knowledge to provide current information.`;
+            }
         }
 
         const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
