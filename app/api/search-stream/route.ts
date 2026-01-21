@@ -162,7 +162,6 @@ export async function POST(req: NextRequest) {
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
             console.error("Search failed:", errorMsg, error);
-            // Fallback: use a generic response instead of failing
             searchResults = `Information about ${normalizedQuery} from web search. Please note: Web search is currently unavailable. Showing general information based on available data.`;
         }
 
@@ -187,7 +186,7 @@ export async function POST(req: NextRequest) {
                 maxTokens: 4000
             }),
             new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Request timeout after 120 seconds")), 120000)
+                setTimeout(() => reject(new Error("Request timeout after 180 seconds")), 180000)
             )
         ]) as Awaited<ReturnType<typeof generateText>>;
 

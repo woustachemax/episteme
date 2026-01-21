@@ -3,6 +3,7 @@ import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useState, useEffect } from 'react';
 import { SuggestionsModal } from './SuggestionsModal';
+import { AnimatedLoader } from './AnimatedLoader';
 type AnalysisResult = {
   error?: string;
   names?: string[];
@@ -59,11 +60,8 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center space-y-6">
-          <Loader2 size={32} className="animate-spin text-white mx-auto" />
-          <p className="text-gray-400 font-light">Searching and analyzing content...</p>
-        </div>
+      <div className="max-w-6xl mx-auto px-6 py-12">
+        <AnimatedLoader query={results?.query || 'your query'} />
       </div>
     );
   }

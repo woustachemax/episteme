@@ -44,7 +44,8 @@ export default function EpistemeApp() {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      // Increase timeout for production - AI generation can take time
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes
 
       const response = await fetch('/api/search-stream', {
         method: 'POST',
@@ -66,9 +67,18 @@ export default function EpistemeApp() {
       setSearchResults(data);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
+      // Check if it's a timeout/abort error
+      const isTimeout = error instanceof Error && (
+        error.message.includes('timeout') || 
+        error.message.includes('abort') ||
+        error.name === 'AbortError'
+      );
+      
       setSearchResults({
         query,
-        content: `Error: ${errorMsg}`,
+        content: isTimeout 
+          ? `The search is taking longer than expected. Please try again in a moment.`
+          : `Error: ${errorMsg}`,
         analysis: { error: "Search failed" },
         factCheck: { error: "Search failed" }
       });
