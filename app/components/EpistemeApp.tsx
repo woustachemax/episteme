@@ -44,8 +44,8 @@ export default function EpistemeApp() {
 
     try {
       const controller = new AbortController();
-      // Increase timeout for production - AI generation can take time
-      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes
+      // Vercel functions have 120s max duration, use 50s client timeout for safety
+      const timeoutId = setTimeout(() => controller.abort(), 50000);
 
       const response = await fetch('/api/search-stream', {
         method: 'POST',
@@ -67,7 +67,7 @@ export default function EpistemeApp() {
       setSearchResults(data);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
-      // Check if it's a timeout/abort error
+      console.error('Search error:', error);
       const isTimeout = error instanceof Error && (
         error.message.includes('timeout') || 
         error.message.includes('abort') ||

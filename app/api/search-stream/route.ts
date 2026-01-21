@@ -198,7 +198,7 @@ Topic: ${normalizedQuery}
                 maxTokens: 4000
             }),
             new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Request timeout after 180 seconds")), 180000)
+                setTimeout(() => reject(new Error("Request timeout after 110 seconds")), 110000)
             )
         ]) as Awaited<ReturnType<typeof generateText>>;
 

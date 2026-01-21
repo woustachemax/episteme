@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/search-stream/route.ts": {
+      "maxDuration": 120
+    }
+  }
+}
