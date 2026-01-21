@@ -151,6 +151,8 @@ export async function POST(req: NextRequest) {
             : { type: 'concept', confidence: 0, context: '', keywords: [], sources: [] };
 
         let searchResults: string;
+        let usedWebSearch = true;
+        
         try {
             const searchTimeout = new Promise<string>((_, reject) => 
                 setTimeout(() => reject(new Error('Search timeout after 30 seconds')), 30000)
@@ -161,11 +163,17 @@ export async function POST(req: NextRequest) {
             ]);
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            console.error("Search failed:", errorMsg, error);
-            searchResults = `Information about ${normalizedQuery} from web search. Please note: Web search is currently unavailable. Showing general information based on available data.`;
+            console.error("Web search failed:", errorMsg, error);
+            usedWebSearch = false;
+            searchResults = `[Web search unavailable - using model knowledge only] 
+Query: ${normalizedQuery}
+Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+Note: Use your training data and real-time knowledge to provide current information.`;
         }
 
-        const enhancedPrompt = `Topic: ${normalizedQuery}
+        const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const enhancedPrompt = `Today's date: ${currentDate}
+Topic: ${normalizedQuery}
 
         ENTITY CLASSIFICATION:
         - Type: ${entity.type}
@@ -173,10 +181,10 @@ export async function POST(req: NextRequest) {
         - Specific Context: ${entity.context}
         ${entity.keywords.length > 0 ? `- SEO Keywords to include: ${entity.keywords.join(', ')}` : ''}
 
-        REAL-TIME WEB SEARCH RESULTS:
+        ${usedWebSearch ? 'REAL-TIME WEB SEARCH RESULTS:' : 'FALLBACK MODE - USING MODEL KNOWLEDGE:'}
         ${searchResults}
 
-        Generate a comprehensive, factually accurate, SEO-optimized Wikipedia-style article based on the entity type and verified sources above.`;
+        Generate a comprehensive, factually accurate, SEO-optimized Wikipedia-style article based on the entity type and ${usedWebSearch ? 'verified sources above' : 'your knowledge. Mark recent information (2025-2026) as current.'}.`;
 
         const result = await Promise.race([
             generateText({
