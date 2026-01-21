@@ -38,7 +38,13 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   useEffect(() => {
-    const handleTextSelection = () => {
+    const handleTextSelection = (e: MouseEvent) => {
+      // Only trigger if selection is within the article content div
+      const articleContent = document.getElementById('article-content');
+      if (!articleContent || !articleContent.contains(e.target as Node)) {
+        return;
+      }
+
       const selectedText = window.getSelection()?.toString();
       if (selectedText && selectedText.length > 3 && results) {
         const storageKey = `selectedText_${results.query}`;
@@ -47,8 +53,8 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
       }
     };
 
-    document.addEventListener('mouseup', handleTextSelection);
-    return () => document.removeEventListener('mouseup', handleTextSelection);
+    document.addEventListener('mouseup', handleTextSelection as EventListener);
+    return () => document.removeEventListener('mouseup', handleTextSelection as EventListener);
   }, [results]);
 
   if (isLoading) {
@@ -91,6 +97,7 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
             className="bg-zinc-900 rounded-lg p-8 border border-zinc-800"
+            id="article-content"
           >
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-medium text-white">Search Results</h2>

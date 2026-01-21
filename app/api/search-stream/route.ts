@@ -162,10 +162,8 @@ export async function POST(req: NextRequest) {
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : 'Unknown error';
             console.error("Search failed:", errorMsg, error);
-            return NextResponse.json(
-                { error: `Failed to fetch web search results: ${errorMsg}` },
-                { status: 500 }
-            );
+            // Fallback: use a generic response instead of failing
+            searchResults = `Information about ${normalizedQuery} from web search. Please note: Web search is currently unavailable. Showing general information based on available data.`;
         }
 
         const enhancedPrompt = `Topic: ${normalizedQuery}
