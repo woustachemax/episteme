@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next()
     response.headers.set(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        "default-src *; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src * data: blob:; frame-ancestors *; base-uri *; form-action *; object-src 'none';"
     )
     return response
 }
