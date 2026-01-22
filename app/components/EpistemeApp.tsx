@@ -44,7 +44,6 @@ export default function EpistemeApp() {
 
     try {
       const controller = new AbortController();
-      // Vercel functions have 120s max duration, use 50s client timeout for safety
       const timeoutId = setTimeout(() => controller.abort(), 50000);
 
       const response = await fetch('/api/search-stream', {
