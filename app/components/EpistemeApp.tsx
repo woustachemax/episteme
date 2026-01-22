@@ -66,7 +66,12 @@ export default function EpistemeApp() {
       setSearchResults(data);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Search error:', error);
+      console.error('=== Search error ===');
+      console.error('Error:', error);
+      console.error('Error message:', errorMsg);
+      console.error('Error name:', error instanceof Error ? error.name : 'N/A');
+      console.error('Full error object:', JSON.stringify(error, null, 2));
+      
       const isTimeout = error instanceof Error && (
         error.message.includes('timeout') || 
         error.message.includes('abort') ||

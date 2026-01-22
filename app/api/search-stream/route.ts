@@ -62,10 +62,21 @@ function factCheckContent(content: string) {
 }
 
 export async function POST(req: NextRequest) {
+    console.log("=== SEARCH API CALLED ===");
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Origin:", req.headers.get('origin'));
+    console.log("Environment keys present:", {
+      hasOpenAI: !!process.env.OPENAI_API_KEY,
+      hasTavily: !!process.env.TAVILY_API_KEY,
+      hasDB: !!process.env.DATABASE_URL
+    });
+    
     try {
         const { query } = await req.json();
+        console.log("Query received:", query);
 
         if (!query) {
+            console.log("No query provided");
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
@@ -216,7 +227,7 @@ Topic: ${normalizedQuery}
             }
         }).catch(err => console.error("Failed to cache article:", err));
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             content: result.text,
             query: normalizedQuery,
             analysis,
@@ -225,14 +236,41 @@ Topic: ${normalizedQuery}
             cached: false,
             suggestions: []
         });
+        
+        response.headers.set('Access-Control-Allow-Origin', '*');
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        
+        return response;
 
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         const errorStack = error instanceof Error ? error.stack : undefined;
-        console.error("API error:", errorMsg, errorStack);
-        return NextResponse.json(
+        console.error("=== API ERROR ===");
+        console.error("Time:", new Date().toISOString());
+        console.error("Error message:", errorMsg);
+        console.error("Error stack:", errorStack);
+        console.error("Error object:", JSON.stringify(error, null, 2));
+        console.error("=== END ERROR ===");
+        
+        const errorResponse = NextResponse.json(
             { error: `Internal server error: ${errorMsg}` },
             { status: 500 }
         );
+        
+        errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+        errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        
+        return errorResponse;
     }
+}
+
+export async function OPTIONS(req: NextRequest) {
+    console.log("=== CORS PREFLIGHT ===");
+    const response = new NextResponse(null, { status: 200 });
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    return response;
 }
