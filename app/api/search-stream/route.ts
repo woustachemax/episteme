@@ -206,7 +206,7 @@ Topic: ${normalizedQuery}
                 model: openai("gpt-4"),
                 system: SEARCH_SYSTEM_PROMPT,
                 prompt: enhancedPrompt,
-                maxTokens: 4000
+                maxTokens: 2500
             }),
             new Promise((_, reject) =>
                 setTimeout(() => reject(new Error("Request timeout after 110 seconds")), 110000)
