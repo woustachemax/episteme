@@ -237,21 +237,27 @@ Topic: ${normalizedQuery}
             suggestions: []
         });
         
+        console.log("Generated response, adding CORS headers");
         response.headers.set('Access-Control-Allow-Origin', '*');
         response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        console.log("Response headers set:", {
+          'Content-Type': response.headers.get('Content-Type'),
+          'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+          'Content-Security-Policy': response.headers.get('Content-Security-Policy'),
+          'Content-Security-Policy-Report-Only': response.headers.get('Content-Security-Policy-Report-Only')
+        });
+        console.log("Sending response");
         
         return response;
 
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         const errorStack = error instanceof Error ? error.stack : undefined;
-        console.error("=== API ERROR ===");
-        console.error("Time:", new Date().toISOString());
-        console.error("Error message:", errorMsg);
-        console.error("Error stack:", errorStack);
-        console.error("Error object:", JSON.stringify(error, null, 2));
-        console.error("=== END ERROR ===");
+        console.error("API_ERROR_OCCURRED");
+        console.error("Timestamp:", new Date().toISOString());
+        console.error("Message:", errorMsg);
+        console.error("Stack:", errorStack);
         
         const errorResponse = NextResponse.json(
             { error: `Internal server error: ${errorMsg}` },
@@ -261,6 +267,7 @@ Topic: ${normalizedQuery}
         errorResponse.headers.set('Access-Control-Allow-Origin', '*');
         errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        console.error("Error response headers set");
         
         return errorResponse;
     }
