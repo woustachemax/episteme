@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SEARCH_SYSTEM_PROMPT } from "@/lib/prompts";
 import { canSearch, recordSearch } from "@/lib/rate-limit";
 import { getToken } from "next-auth/jwt";
@@ -115,9 +114,9 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        if (!process.env.OPENAI_API_KEY) {
-            console.error("OPENAI_API_KEY not configured");
-            return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+        if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+            console.error("GOOGLE_GENERATIVE_AI_API_KEY not configured");
+            return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
         }
 
 
@@ -201,17 +200,28 @@ Topic: ${normalizedQuery}
 
         Generate a comprehensive, factually accurate, SEO-optimized Wikipedia-style article based on the entity type and ${usedWebSearch ? 'verified sources above' : 'your knowledge. Mark recent information (2025-2026) as current.'}.`;
 
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || '');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        
         const result = await Promise.race([
-            generateText({
-                model: openai("gpt-4"),
-                system: SEARCH_SYSTEM_PROMPT,
-                prompt: enhancedPrompt,
-                maxTokens: 2500
-            }),
+            (async () => {
+                const response = await model.generateContent({
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: `${SEARCH_SYSTEM_PROMPT}\n\n${enhancedPrompt}` }
+                            ]
+                        }
+                    ]
+                });
+                const text = response.response.text();
+                return { text };
+            })(),
             new Promise((_, reject) =>
                 setTimeout(() => reject(new Error("Request timeout after 110 seconds")), 110000)
             )
-        ]) as Awaited<ReturnType<typeof generateText>>;
+        ]) as { text: string };
 
         const analysis = analyzeContent(result.text);
         const factCheck = factCheckContent(result.text);
