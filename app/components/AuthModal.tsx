@@ -171,7 +171,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
                   required
                   className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors"
                   placeholder="Enter your password"
-                />placeholder="Enter your password"
                 />
               </div>
 
