@@ -47,6 +47,7 @@ export const SearchBox = ({
     >
       <div className="relative">
         <input
+          id="search-input"
           type="text"
           value={query}
           onChange={handleChange}

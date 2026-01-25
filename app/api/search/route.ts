@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SEARCH_SYSTEM_PROMPT } from "@/lib/prompts";
 import { canSearch, recordSearch } from "@/lib/rate-limit";
 import { getToken } from "next-auth/jwt";
@@ -73,9 +72,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Query is required" }, { status: 400 });
         }
 
-        if (!process.env.OPENAI_API_KEY) {
-            console.log("no openai key");
-            return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+        if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+            console.log("no gemini key");
+            return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
         }
 
         const token = await getToken({ req });
@@ -141,12 +140,22 @@ export async function POST(req: NextRequest) {
 
         Generate a comprehensive, factually accurate, SEO-optimized Wikipedia-style article based on the entity type and verified sources above.`;
 
-        console.log("calling openai with real search data");
-        const result = await generateText({
-            model: openai("gpt-4"),
-            system: SEARCH_SYSTEM_PROMPT,
-            prompt: enhancedPrompt
+        console.log("calling gemini with real search data");
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        
+        const response = await model.generateContent({
+            contents: [
+                {
+                    role: "user",
+                    parts: [{ text: `${SEARCH_SYSTEM_PROMPT}\n\n${enhancedPrompt}` }]
+                }
+            ]
         });
+        
+        const result = {
+            text: response.response.text()
+        };
 
         console.log("analyzing");
         const [analysis, factCheck] = await Promise.all([

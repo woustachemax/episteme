@@ -133,8 +133,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Name</label>
+                  <label htmlFor="auth-name" className="block text-sm font-medium text-gray-400 mb-2">Name</label>
                   <input
+                    id="auth-name"
                     type="text"
                     name="name"
                     value={formData.name}
@@ -147,8 +148,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Email</label>
+                <label htmlFor="auth-email" className="block text-sm font-medium text-gray-400 mb-2">Email</label>
                 <input
+                  id="auth-email"
                   type="email"
                   name="email"
                   value={formData.email}
@@ -158,10 +160,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
                   placeholder="Enter your email"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
+                <label htmlFor="auth-password" className="block text-sm font-medium text-gray-400 mb-2">Password</label>
                 <input
+                  id="auth-password"
                   type="password"
                   name="password"
                   value={formData.password}
@@ -169,6 +171,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onSubmit }
                   required
                   className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-md focus:outline-none focus:border-gray-400 text-white placeholder-gray-500 transition-colors"
                   placeholder="Enter your password"
+                />placeholder="Enter your password"
                 />
               </div>
 
