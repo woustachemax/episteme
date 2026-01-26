@@ -118,7 +118,6 @@ async function fetchWikipediaArticle(query: string): Promise<WikiArticle | null>
       categories: categories
     };
   } catch (error) {
-    console.error('Wiki scraper error:', error);
     return null;
   }
 }
@@ -141,13 +140,40 @@ export function analyzeBias(content: string): BiasAnalysis {
   const foundNeutralWords: Set<string> = new Set();
   const suspiciousPatterns: string[] = [];
   
+  const factualPatterns = [
+    /(?:one of|among|considered|regarded as|widely|universally|generally).*?(?:best|greatest|top)/i,
+    /(?:best|greatest|top).*?(?:of all time|ever|in history|in the world)/i,
+    /(?:record|award|championship|title|achievement|accomplishment)/i,
+    /(?:born|died|founded|established|created|invented).*?\d{4}/i,
+    /(?:statistics|data|research|study|survey|report).*?(?:show|indicate|demonstrate)/i
+  ];
+  
   Object.entries(BIAS_WORDS).forEach(([type, biasWordList]) => {
     biasWordList.forEach(biasWord => {
-      const regex = new RegExp(`\\b${biasWord}\\b`, 'i');
-      const matches = content.match(regex);
-      if (matches) {
+      const regex = new RegExp(`\\b${biasWord}\\b`, 'gi');
+      const matches = [...content.matchAll(regex)];
+      
+      matches.forEach(match => {
+        if (!match.index) return;
+        
+        const start = Math.max(0, match.index - 50);
+        const end = Math.min(content.length, match.index + match[0].length + 50);
+        const context = content.substring(start, end).toLowerCase();
+        
+        const isFactual = factualPatterns.some(pattern => pattern.test(context));
+        
+        if (['best', 'greatest', 'worst', 'top'].includes(biasWord.toLowerCase())) {
+          if (isFactual) {
+            return;
+          }
+        }
+        
+        if (type === 'opinion' && isFactual) {
+          return;
+        }
+        
         foundBiasWords.push(`${biasWord} (${type})`);
-      }
+      });
     });
   });
   
@@ -236,7 +262,8 @@ export async function getWikiArticleWithBiasAnalysis(query: string) {
 }
 
 export function formatWikipediaContent(article: WikiArticle): FormattedContent {
-  const lines = article.content.split('\n').filter(line => line.trim());
+  const normalizedContent = normalizeWikiFormat(article.content);
+  const lines = normalizedContent.split('\n').filter(line => line.trim());
   const sections: FormattedContent['sections'] = [];
   let currentSection = { heading: 'Overview', content: '' };
   const keyFacts: string[] = [];
@@ -276,9 +303,10 @@ export function formatWikipediaContent(article: WikiArticle): FormattedContent {
   }
 
   if (sections.length === 0) {
+    const paragraphs = article.content.split(/\n\n+/).filter(p => p.trim().length > 0);
     sections.push({
       heading: 'Content',
-      content: article.content.substring(0, 2000)
+      content: paragraphs.join('\n\n')
     });
   }
 
@@ -295,4 +323,21 @@ export function formatWikipediaContent(article: WikiArticle): FormattedContent {
       relatedTopics: article.links.slice(0, 10)
     }
   };
+}
+
+function normalizeWikiFormat(content: string): string {
+  const lines = content.split('\n');
+  return lines.map(line => {
+    const match = line.match(/^(=+)\s*(.+?)\s*\1$/);
+    if (match) {
+      const equals = match[1];
+      const text = match[2].trim();
+      const level = equals.length - 1;
+      if (level > 0) {
+        return `${'#'.repeat(level)} ${text}`;
+      }
+      return text;
+    }
+    return line;
+  }).join('\n');
 }

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
         const userId = token.id as string;
 
         const article = await db.article.findUnique({
-            where: { query: articleQuery }
+            where: { query: articleQuery.toLowerCase() }
         });
 
         if (!article) {
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         }
 
         const article = await db.article.findUnique({
-            where: { query: articleQuery }
+            where: { query: articleQuery.toLowerCase() }
         });
 
         if (!article) {
@@ -68,7 +68,19 @@ export async function GET(req: NextRequest) {
             orderBy: { votes: 'desc' }
         });
 
-        return NextResponse.json({ suggestions });
+        const approvedChanges = suggestions
+            .filter(s => s.status === 'APPROVED')
+            .map(s => ({
+                oldText: s.oldText,
+                newText: s.newText,
+                userId: s.userId
+            }));
+
+        return NextResponse.json({ 
+            suggestions,
+            approvedChanges,
+            totalApproved: approvedChanges.length
+        });
     } catch (error) {
         console.error("Fetch suggestions error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -101,6 +113,30 @@ export async function PUT(req: NextRequest) {
                 where: { id: suggestionId },
                 data: { status: 'APPROVED' }
             });
+
+            const suggestion = await db.articleSuggestion.findUnique({
+                where: { id: suggestionId },
+                include: { article: true }
+            });
+
+            if (suggestion?.article) {
+                let updatedContent = String(suggestion.article.content || '');
+                if (suggestion.oldText && suggestion.newText) {
+                    updatedContent = updatedContent.replace(
+                        String(suggestion.oldText),
+                        String(suggestion.newText)
+                    );
+                }
+
+                await db.article.update({
+                    where: { id: suggestion.article.id },
+                    data: { 
+                        content: updatedContent,
+                        updatedAt: new Date()
+                    }
+                });
+            }
+
             return NextResponse.json({ success: true, suggestion: updated });
         }
 
@@ -118,3 +154,5 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
+
+

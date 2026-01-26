@@ -42,16 +42,15 @@ export default function EpistemeApp() {
     setIsSearching(true);
     setHasSearched(true);
     setSearchQuery(query);
-    
-    console.log(`[SEARCH_START] Query: ${query}`);
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000);
 
       const useExternalFactCheck = localStorage.getItem('factcheck_use_external') === 'true';
+      const useAIFactCheck = localStorage.getItem('factcheck_use_ai') === 'true';
+      const openaiKey = localStorage.getItem('factcheck_openai_key') || '';
 
-      console.log(`[FETCH_START] Sending request to /api/wiki`);
       const response = await fetch('/api/wiki', {
         method: 'POST',
         headers: {
@@ -59,30 +58,34 @@ export default function EpistemeApp() {
         },
         body: JSON.stringify({ 
           query,
-          useExternalFactCheck 
+          useExternalFactCheck,
+          useAIFactCheck: useAIFactCheck && openaiKey ? true : false,
+          openaiKey: useAIFactCheck && openaiKey ? openaiKey : undefined
         }),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
-      console.log(`[FETCH_SUCCESS] Status: ${response.status}`);
-      console.log(`[RESPONSE_HEADERS] Content-Type: ${response.headers.get('Content-Type')}`);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[RESPONSE_NOT_OK] ${response.status} - ${errorText}`);
-        throw new Error(`Search failed: ${response.status} - ${errorText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Article not found' }));
+        const isNotFound = response.status === 404;
+        
+        setSearchResults({
+          query,
+          content: isNotFound 
+            ? `**Article Not Found**\n\nNo Wikipedia article found for "${query}". This might be due to:\n\n- A typo in the search term\n- The topic not having a Wikipedia article\n- The article name being different\n\n**Suggestions:**\n- Check your spelling\n- Try a different search term\n- Search for a related topic`
+            : `**Error**\n\nUnable to fetch article: ${errorData.error || 'Unknown error'}`,
+          analysis: { error: "Search failed" },
+          factCheck: { error: "Search failed" }
+        });
+        setIsSearching(false);
+        return;
       }
 
       const data = await response.json();
-      console.log(`[PARSE_SUCCESS] Got JSON response`);
       setSearchResults(data);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error(`[SEARCH_ERROR] ${errorMsg}`);
-      console.error(`[ERROR_TYPE] ${error instanceof Error ? error.name : typeof error}`);
-      console.error(`[ERROR_CAUSE] ${error instanceof Error ? error.cause : 'N/A'}`);
-      
       const isTimeout = error instanceof Error && (
         error.message.includes('timeout') || 
         error.message.includes('abort') ||
@@ -92,8 +95,8 @@ export default function EpistemeApp() {
       setSearchResults({
         query,
         content: isTimeout 
-          ? `The search is taking longer than expected. Please try again in a moment.`
-          : `Error: ${errorMsg}`,
+          ? `**Request Timeout**\n\nThe search is taking longer than expected. Please try again in a moment.`
+          : `**Error**\n\nAn error occurred while searching. Please try again.`,
         analysis: { error: "Search failed" },
         factCheck: { error: "Search failed" }
       });

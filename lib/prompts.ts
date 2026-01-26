@@ -70,7 +70,8 @@ Article Structure by Entity Type:
 - Related Topics
 
 Writing Style:
-- Clear, concise, scannable (800-1,200 words)
+- Comprehensive, detailed, Wikipedia-style article (aim for 2,000-5,000+ words for substantial topics)
+- Include ALL available information from sources - do not truncate or summarize unnecessarily
 - Use **bold** for section headers (e.g., **Introduction** not # Introduction)
 - Bullet points for lists
 - Bold key terms on first mention
@@ -78,6 +79,7 @@ Writing Style:
 - NO speculation or invented details
 - NO corporate jargon unless entity is actually a company
 - NO funding/investment language unless entity is a company with verified funding info
+- Write complete sections with full details - this should read like a full Wikipedia article, not a summary
 
 Critical Rules:
 - Match the article style to the entity type

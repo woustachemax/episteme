@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useState, useEffect } from 'react';
 import { SuggestionsModal } from './SuggestionsModal';
 import { AnimatedLoader } from './AnimatedLoader';
+import { BiasAlert } from './BiasAlert';
 type AnalysisResult = {
   error?: string;
   names?: string[];
@@ -15,9 +16,11 @@ type AnalysisResult = {
 type FactCheckResult = {
   error?: string;
   factual_claims?: string[];
-  bias_words_found?: string[];
+  bias_words_found?: Array<string | { word: string; category: 'positive' | 'negative' | 'opinion' }>;
   confidence_score?: number;
   total_claims?: number;
+  bias_score?: number;
+  summary?: string;
   [key: string]: unknown;
 };
 
@@ -61,6 +64,7 @@ type SearchResultsProps = {
 
 export const SearchResults = ({ results, isLoading, currentQuery }: SearchResultsProps) => {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [factCheckOpen, setFactCheckOpen] = useState(false);
 
   useEffect(() => {
     const handleTextSelection = (e: MouseEvent) => {
@@ -113,6 +117,15 @@ export const SearchResults = ({ results, isLoading, currentQuery }: SearchResult
     >
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          {results.factCheck?.bias_score && results.factCheck.bias_score > 0 && (
+            <BiasAlert 
+              biasScore={results.factCheck.bias_score}
+              threshold={0.6}
+              onFactCheckClick={() => setFactCheckOpen(true)}
+              summary={results.factCheck.summary || undefined}
+            />
+          )}
+
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -122,7 +135,9 @@ export const SearchResults = ({ results, isLoading, currentQuery }: SearchResult
           >
             <div className="flex justify-between items-center mb-6">
               <div className="flex-1">
-                <h1 className="text-3xl font-bold text-white mb-2">{results.formatted?.title || results.query}</h1>
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  {(results.formatted?.title || results.query).replace(/^#+\s*/, '').replace(/\*\*/g, '')}
+                </h1>
                 <p className="text-gray-400 text-sm">{results.formatted?.summary || results.query}</p>
               </div>
               {results.cached && (
@@ -149,44 +164,30 @@ export const SearchResults = ({ results, isLoading, currentQuery }: SearchResult
 
             <div className="space-y-6">
               {results.formatted?.sections && results.formatted.sections.length > 0 ? (
-                results.formatted.sections.map((section, idx) => (
-                  <div key={idx} className="scroll-mt-4">
-                    <h2 className="text-xl font-semibold text-white mb-3">{section.heading}</h2>
-                    <div className="prose prose-invert max-w-none text-gray-300">
-                      <p className="leading-relaxed">{section.content}</p>
+                results.formatted.sections.map((section, idx) => {
+                  // Remove markdown headings (##, ###, etc.) and bold syntax (**text**) from the heading text
+                  const cleanHeading = section.heading.replace(/^#+\s*/, '').replace(/\*\*/g, '');
+                  const paragraphs = section.content.split(/\n\n+/).filter(p => p.trim().length > 0);
+                  return (
+                    <div key={idx} className="scroll-mt-4">
+                      <h2 className="text-xl font-semibold text-white mb-4">{cleanHeading}</h2>
+                      <div className="prose prose-invert max-w-none text-gray-300 space-y-4">
+                        {paragraphs.map((para, pIdx) => (
+                          <p key={pIdx} className="leading-relaxed text-gray-300">
+                            {para.trim()}
+                          </p>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <div className="prose prose-invert max-w-none">
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => (
-                        <h1 className="text-2xl font-semibold text-white mt-8 mb-4">{children}</h1>
-                      ),
-                      h2: ({ children }) => (
-                        <h2 className="text-xl font-semibold text-white mt-6 mb-3">{children}</h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3 className="text-lg font-medium text-white mt-4 mb-2">{children}</h3>
-                      ),
-                      p: ({ children }) => (
-                        <p className="text-gray-300 leading-relaxed mb-4">{children}</p>
-                      ),
-                      a: ({ href, children }) => (
-                        <a 
-                          href={href} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 underline transition-colors"
-                        >
-                          {children}
-                        </a>
-                      ),
-                    }}
-                  >
-                    {results.content}
-                  </ReactMarkdown>
+                <div className="prose prose-invert max-w-none text-gray-300 space-y-4">
+                  {results.content.split(/\n\n+/).filter(p => p.trim().length > 0).map((para, idx) => (
+                    <p key={idx} className="leading-relaxed text-gray-300">
+                      {para.trim()}
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
@@ -334,17 +335,35 @@ export const SearchResults = ({ results, isLoading, currentQuery }: SearchResult
                         <div>
                           <span className="text-gray-400 text-sm block mb-2">Bias Indicators</span>
                           <div className="flex flex-wrap gap-1.5">
-                            {results.factCheck.bias_words_found.map((word, idx) => (
-                              <motion.span 
-                                key={idx}
-                                initial={{ scale: 0.9, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ delay: 0.5 + (idx * 0.1), duration: 0.3 }}
-                                className="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20 hover:border-red-500/40 transition-colors"
-                              >
-                                {word}
-                              </motion.span>
-                            ))}
+                            {results.factCheck.bias_words_found.map((item, idx) => {
+                              const word = typeof item === 'string' ? item : item.word;
+                              const category = typeof item === 'string' ? 'negative' : item.category;
+                              
+                              const categoryStyles = {
+                                positive: 'bg-green-500/10 text-green-400 border-green-500/20 hover:border-green-500/40',
+                                negative: 'bg-red-500/10 text-red-400 border-red-500/20 hover:border-red-500/40',
+                                opinion: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:border-yellow-500/40'
+                              };
+                              
+                              const categoryLabel = {
+                                positive: 'positive',
+                                negative: 'negative',
+                                opinion: 'opinion'
+                              };
+                              
+                              return (
+                                <motion.span 
+                                  key={idx}
+                                  initial={{ scale: 0.9, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ delay: 0.5 + (idx * 0.1), duration: 0.3 }}
+                                  className={`${categoryStyles[category]} px-2 py-1 rounded text-xs border transition-colors`}
+                                  title={`${categoryLabel[category]}`}
+                                >
+                                  {word} ({categoryLabel[category]})
+                                </motion.span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

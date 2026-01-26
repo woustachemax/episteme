@@ -38,6 +38,8 @@ export const SuggestionsModal = ({
   const [submitted, setSubmitted] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [authError, setAuthError] = useState(false);
+  const [wikiSubmitLoading, setWikiSubmitLoading] = useState(false);
+  const [wikiSubmitSuccess, setWikiSubmitSuccess] = useState(false);
 
   const handleFetchSuggestions = async () => {
     setFetchError(null);
@@ -117,6 +119,40 @@ export const SuggestionsModal = ({
     }
   };
 
+  const handleSubmitToWiki = async () => {
+    if (!selectedText || !newText) {
+      alert('Please fill in old text and replacement text');
+      return;
+    }
+
+    setWikiSubmitLoading(true);
+    try {
+      const response = await fetch('/api/suggestions/wiki-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleQuery,
+          oldText: selectedText,
+          newText,
+          reason: reason || 'Community suggestion via Episteme'
+        })
+      });
+
+      if (response.ok) {
+        setWikiSubmitSuccess(true);
+        setTimeout(() => setWikiSubmitSuccess(false), 4000);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setFetchError(errorData.error || 'Failed to submit to Wiki');
+      }
+    } catch (error) {
+      console.error('Error submitting to wiki:', error);
+      setFetchError('Network error. Please try again.');
+    } finally {
+      setWikiSubmitLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -158,6 +194,20 @@ export const SuggestionsModal = ({
               <div>
                 <p className="font-medium">Suggestion submitted successfully</p>
                 <p className="text-sm text-green-300/70">Your contribution will appear in the suggestions feed</p>
+              </div>
+            </motion.div>
+          )}
+
+          {wikiSubmitSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-950/30 border border-blue-900 text-blue-300 p-4 rounded-lg flex items-center gap-3"
+            >
+              <div className="text-lg">✓</div>
+              <div>
+                <p className="font-medium">Submitted to Wikipedia</p>
+                <p className="text-sm text-blue-300/70">Your change has been queued for Wikipedia review</p>
               </div>
             </motion.div>
           )}
@@ -242,17 +292,31 @@ export const SuggestionsModal = ({
                 />
               </div>
 
-              <button
-                onClick={handleSubmitSuggestion}
-                disabled={isLoading || !selectedText || !newText || !reason || !session}
-                className={`w-full font-semibold py-3 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
-                  !session 
-                    ? 'bg-white hover:bg-gray-100 text-zinc-900' 
-                    : 'bg-white hover:bg-gray-100 disabled:bg-gray-700 disabled:cursor-not-allowed text-black'
-                }`}
-              >
-                {!session ? 'Sign in required to submit suggestions' : isLoading ? 'Submitting...' : 'Submit Suggestion'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={!session ? () => signIn(undefined, { callbackUrl: window.location.href }) : handleSubmitSuggestion}
+                  disabled={!!session && (isLoading || !selectedText || !newText || !reason)}
+                  className={`flex-1 font-semibold py-3 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                    !session 
+                      ? 'bg-white hover:bg-gray-100 text-zinc-900 cursor-pointer' 
+                      : 'bg-white hover:bg-gray-100 disabled:bg-gray-700 disabled:cursor-not-allowed text-black'
+                  }`}
+                >
+                  {!session ? 'Sign in required' : isLoading ? 'Submitting...' : 'Submit to Episteme'}
+                </button>
+
+                <button
+                  onClick={handleSubmitToWiki}
+                  disabled={wikiSubmitLoading || !selectedText || !newText || !session}
+                  className={`flex-1 font-semibold py-3 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                    !session 
+                      ? 'bg-zinc-700 text-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-700 hover:bg-blue-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white'
+                  }`}
+                >
+                  {wikiSubmitLoading ? 'Submitting to Wiki...' : 'Submit to Wikipedia'}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">

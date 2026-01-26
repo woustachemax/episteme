@@ -9,22 +9,30 @@ export const FactCheckSettings = () => {
   const [apiKey, setApiKey] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [useExternal, setUseExternal] = useState(false);
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [useAIFactCheck, setUseAIFactCheck] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('factcheck_api_key');
     const savedUrl = localStorage.getItem('factcheck_api_url');
     const savedUseExternal = localStorage.getItem('factcheck_use_external');
+    const savedOpenaiKey = localStorage.getItem('factcheck_openai_key');
+    const savedUseAI = localStorage.getItem('factcheck_use_ai');
     
     if (savedKey) setApiKey(savedKey);
     if (savedUrl) setApiUrl(savedUrl);
     if (savedUseExternal) setUseExternal(JSON.parse(savedUseExternal));
+    if (savedOpenaiKey) setOpenaiKey(savedOpenaiKey);
+    if (savedUseAI) setUseAIFactCheck(JSON.parse(savedUseAI));
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('factcheck_api_key', apiKey);
     localStorage.setItem('factcheck_api_url', apiUrl);
     localStorage.setItem('factcheck_use_external', JSON.stringify(useExternal));
+    localStorage.setItem('factcheck_openai_key', openaiKey);
+    localStorage.setItem('factcheck_use_ai', JSON.stringify(useAIFactCheck));
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -33,9 +41,13 @@ export const FactCheckSettings = () => {
     setApiKey('');
     setApiUrl('');
     setUseExternal(false);
+    setOpenaiKey('');
+    setUseAIFactCheck(false);
     localStorage.removeItem('factcheck_api_key');
     localStorage.removeItem('factcheck_api_url');
     localStorage.removeItem('factcheck_use_external');
+    localStorage.removeItem('factcheck_openai_key');
+    localStorage.removeItem('factcheck_use_ai');
   };
 
   return (
@@ -82,6 +94,40 @@ export const FactCheckSettings = () => {
                 <p className="text-sm text-gray-400">
                   Always available - analyzes bias patterns and suspicious language locally without external APIs.
                 </p>
+              </div>
+
+              <div className="border border-zinc-700 rounded p-4">
+                <label className="flex items-center gap-3 cursor-pointer mb-4">
+                  <input
+                    type="checkbox"
+                    checked={useAIFactCheck}
+                    onChange={(e) => setUseAIFactCheck(e.target.checked)}
+                    className="rounded border-zinc-600 bg-zinc-800 text-white-500 focus:ring-white-500"
+                  />
+                  <span className="font-medium text-white">Enable AI Fact-Checking (OpenAI)</span>
+                </label>
+
+                {useAIFactCheck && (
+                  <div className="space-y-3 pl-7">
+                    <div>
+                      <label className="block text-sm text-gray-300 mb-1">OpenAI API Key</label>
+                      <input
+                        type="password"
+                        value={openaiKey}
+                        onChange={(e) => setOpenaiKey(e.target.value)}
+                        placeholder="sk-..."
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-white-500 transition-colors"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Uses OpenAI API to fact-check content. Your key is stored locally and never shared.
+                      </p>
+                    </div>
+
+                    <div className="text-xs text-blue-600 bg-blue-900/20 border border-blue-700 rounded p-2">
+                      AI fact-checking provides deeper analysis but uses your API credits. You'll be charged by OpenAI for usage.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="border border-zinc-700 rounded p-4">
@@ -146,7 +192,7 @@ export const FactCheckSettings = () => {
                   'Save Settings'
                 )}
               </button>
-              {(apiKey || apiUrl) && (
+              {(apiKey || apiUrl || openaiKey) && (
                 <button
                   onClick={handleClear}
                   className="flex-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 font-medium py-2 rounded transition-colors border border-red-700"

@@ -30,28 +30,82 @@ function analyzeContent(content: string) {
 
 function factCheckContent(content: string) {
     try {
-        const biasWords = [
-            'amazing', 'terrible', 'best', 'worst', 'incredible', 'awful',
-            'fantastic', 'horrible', 'perfect', 'useless', 'revolutionary',
-            'groundbreaking', 'devastating', 'brilliant'
+        const BIAS_WORDS = {
+            positive: [
+                'amazing', 'incredible', 'fantastic', 'brilliant', 'excellent', 'outstanding',
+                'revolutionary', 'groundbreaking', 'remarkable', 'magnificent', 'superior',
+                'best', 'greatest', 'perfect', 'unparalleled', 'legendary', 'iconic'
+            ],
+            negative: [
+                'terrible', 'awful', 'horrible', 'dreadful', 'worst', 'useless', 'pathetic',
+                'devastating', 'disastrous', 'inferior', 'failed', 'disaster', 'catastrophic',
+                'atrocious', 'abysmal', 'execrable'
+            ],
+            opinion: [
+                'believe', 'opinion', 'should', 'must', 'clearly', 'obviously', 'undoubtedly',
+                'allegedly', 'reportedly', 'supposedly', 'claim', 'argued', 'insists'
+            ]
+        };
+        
+        const factualPatterns = [
+            /(?:one of|among|considered|regarded as|widely|universally|generally).*?(?:best|greatest|top)/i,
+            /(?:best|greatest|top).*?(?:of all time|ever|in history|in the world)/i,
+            /(?:record|award|championship|title|achievement|accomplishment)/i,
+            /(?:born|died|founded|established|created|invented).*?\d{4}/i,
+            /(?:statistics|data|research|study|survey|report).*?(?:show|indicate|demonstrate)/i
         ];
         
         const claimMatches = content.match(/[^.!?]*(?:\d{4}|\$[\d,]+|\d+(?:,\d{3})*)[^.!?]*[.!?]/g);
         const factualClaims = claimMatches ? claimMatches.slice(0, 5) : [];
         
-        const foundBias: string[] = [];
-        biasWords.forEach(word => {
-            const regex = new RegExp(`\\b${word}\\b`, 'i');
-            if (regex.test(content)) {
-                foundBias.push(word);
-            }
+        const foundBias: Array<{ word: string; category: 'positive' | 'negative' | 'opinion'; context: string }> = [];
+        
+        Object.entries(BIAS_WORDS).forEach(([category, words]) => {
+            words.forEach(word => {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                const matches = [...content.matchAll(regex)];
+                
+                matches.forEach(match => {
+                    if (!match.index) return;
+                    
+                    const start = Math.max(0, match.index - 50);
+                    const end = Math.min(content.length, match.index + match[0].length + 50);
+                    const context = content.substring(start, end).toLowerCase();
+                    
+                    const isFactual = factualPatterns.some(pattern => pattern.test(context));
+                    
+                    if (['best', 'greatest', 'worst', 'top'].includes(word.toLowerCase())) {
+                        if (isFactual) {
+                            return; 
+                        }
+                    }
+                    
+                    if (category === 'opinion' && isFactual) {
+                        return; 
+                    }
+                    
+                    foundBias.push({ 
+                        word, 
+                        category: category as 'positive' | 'negative' | 'opinion',
+                        context: context.trim()
+                    });
+                });
+            });
         });
         
-        const confidence = Math.max(0.3, 1.0 - (foundBias.length * 0.1));
+        const uniqueBias = Array.from(
+            new Map(foundBias.map(item => [item.word, item])).values()
+        );
+        
+        const biasCount = uniqueBias.length;
+        // Calculate confidence: more bias words = lower confidence
+        // Base confidence starts at 1.0, decreases by 0.15 per bias word, minimum 0.1
+        const confidence = Math.max(0.1, 1.0 - (biasCount * 0.15)); 
         
         return {
             factual_claims: factualClaims,
-            bias_words_found: foundBias,
+            bias_words_found: uniqueBias.map(({ word, category }) => ({ word, category })),
+            bias_score: Math.round((1 - confidence) * 100) / 100,
             confidence_score: Math.round(confidence * 100) / 100,
             total_claims: claimMatches ? claimMatches.length : 0
         };

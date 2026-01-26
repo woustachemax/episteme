@@ -37,18 +37,61 @@ async function checkExternalFactCheck(content: string, title: string): Promise<F
       };
     }
   } catch (error) {
-    console.error('External fact-check request failed:', error);
+  }
+
+  return null;
+}
+
+async function checkAIFactCheck(content: string, title: string, openaiKey: string): Promise<FactCheckResult | null> {
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a fact-checking assistant. Analyze the provided content and return a JSON object with: score (0-1, where 1 is fully factual), sources (array of claim sources if available), and summary (brief explanation).'
+          },
+          {
+            role: 'user',
+            content: `Title: ${title}\n\nContent:\n${content.substring(0, 4000)}\n\nAnalyze this content for factual accuracy.`
+          }
+        ],
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      const content = data.choices?.[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content) as { score?: number; sources?: string[]; summary?: string };
+        return {
+          provider: 'openai',
+          score: parsed.score || 0.5,
+          sources: parsed.sources || []
+        };
+      }
+    }
+  } catch (error) {
   }
 
   return null;
 }
 
 export async function POST(req: NextRequest) {
-  console.log("api call");
-  
   try {
-    const { query, useExternalFactCheck } = await req.json() as { query: string; useExternalFactCheck?: boolean };
-    console.log("Query received:", query);
+    const { query, useExternalFactCheck, useAIFactCheck, openaiKey } = await req.json() as { 
+      query: string; 
+      useExternalFactCheck?: boolean;
+      useAIFactCheck?: boolean;
+      openaiKey?: string;
+    };
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
@@ -72,11 +115,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    recordSearch({ userId, ipAddress: ip, query }).catch(err => 
-      console.error("Failed to record search:", err)
-    );
+    recordSearch({ userId, ipAddress: ip, query }).catch(() => {});
 
-    console.log("Fetching Wikipedia article...");
     const result = await getWikiArticleWithBiasAnalysis(query);
 
     if (!result.success || !result.article || !result.biasAnalysis || !result.metadata || !result.formatted) {
@@ -86,7 +126,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const article = result.article;
+    let article = result.article;
     const formatted = result.formatted;
     const biasAnalysis = result.biasAnalysis;
     const metadata = result.metadata;
@@ -94,7 +134,13 @@ export async function POST(req: NextRequest) {
     let factCheckProvider = 'local';
     let externalSources: string[] = [];
     
-    if (useExternalFactCheck) {
+    if (useAIFactCheck && openaiKey) {
+      const aiResult = await checkAIFactCheck(article.content, article.title, openaiKey);
+      if (aiResult) {
+        factCheckProvider = aiResult.provider;
+        externalSources = aiResult.sources;
+      }
+    } else if (useExternalFactCheck) {
       const externalResult = await checkExternalFactCheck(article.content, article.title);
       if (externalResult) {
         factCheckProvider = externalResult.provider;
@@ -103,6 +149,23 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      const existingArticle = await db.article.findUnique({
+        where: { query: query.toLowerCase() }
+      });
+
+      if (existingArticle) {
+        const approvedSuggestions = await db.articleSuggestion.findMany({
+          where: { 
+            articleId: existingArticle.id,
+            status: 'APPROVED'
+          }
+        });
+
+        if (approvedSuggestions.length > 0) {
+          article.content = applyApprovedChanges(article.content as string, approvedSuggestions);
+        }
+      }
+
       await db.article.upsert({
         where: { query: query.toLowerCase() },
         create: {
@@ -131,7 +194,6 @@ export async function POST(req: NextRequest) {
         update: {}
       });
     } catch (dbErr) {
-      console.error("DB cache error:", dbErr);
     }
 
     return NextResponse.json({
@@ -141,9 +203,9 @@ export async function POST(req: NextRequest) {
         summary: formatted.summary,
         sections: formatted.sections.map(s => ({
           heading: s.heading,
-          content: s.content.substring(0, 500) 
+          content: s.content
         })),
-        keyFacts: formatted.keyFacts.slice(0, 5),
+        keyFacts: formatted.keyFacts,
         metadata: formatted.metadata
       },
       title: article.title,
@@ -176,12 +238,31 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error("API error:", error);
     return NextResponse.json(
-      { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
+}
+
+function applyApprovedChanges(content: any, suggestions: any): string {
+  const contentStr: string = typeof content === 'string' ? content : String(content);
+  let result: string = contentStr;
+  
+  if (Array.isArray(suggestions)) {
+    for (let i = 0; i < suggestions.length; i++) {
+      const suggestion = suggestions[i] as any;
+      if (suggestion?.oldText && suggestion?.newText) {
+        const oldStr = String((suggestion.oldText));
+        const newStr = String((suggestion.newText));
+        if (oldStr && result.indexOf(oldStr) !== -1) {
+          result = result.split(oldStr).join(newStr);
+        }
+      }
+    }
+  }
+  
+  return result;
 }
 
 export async function OPTIONS(req: NextRequest) {

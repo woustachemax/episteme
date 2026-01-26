@@ -26,12 +26,13 @@ A fact-checking and bias analysis platform that searches Wikipedia and provides 
 - React 19
 
 ### Backend
-- Next.js API Routes
+- Next.js API Routes 
 - Prisma ORM
 - PostgreSQL
-- Native Fetch API (no external AI services required)
+- Python
 
-### External Services (Optional)
+### Optional Services
+- Python Wiki Formatter (standalone service for advanced content normalization)
 - Wikipedia API (public, no auth required)
 - Custom Fact-Check APIs (user-configurable, optional)
 
@@ -73,6 +74,33 @@ pnpm dev
 
 The application will be available at `http://localhost:3000`
 
+## Deployment to Vercel
+
+The application is fully compatible with Vercel hosting.
+
+### Quick Deploy
+
+1. Push your repository to GitHub
+2. Import to Vercel: https://vercel.com/import
+3. Connect your GitHub repository
+4. Set environment variables in Vercel dashboard:
+   - `DATABASE_URL` - PostgreSQL connection string
+   - `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
+   - `NEXTAUTH_URL` - Your Vercel domain (e.g., https://episteme.vercel.app)
+   - `GOOGLE_CLIENT_ID` - From Google OAuth
+   - `GOOGLE_CLIENT_SECRET` - From Google OAuth
+
+5. Click Deploy
+
+### Python Wiki Formatter (Optional)
+
+The optional Python wiki formatter service (`python/services/wiki_formatter.py`) can be:
+- **Left disabled**: App works perfectly without it - core functionality uses native JavaScript formatting
+- **Deployed separately**: Host on any Python-capable service (Railway, Heroku, AWS Lambda, etc.)
+- **Configured later**: Add `WIKI_FORMATTER_URL` environment variable pointing to deployed service
+
+The main Next.js application works perfectly on Vercel without the Python service.
+
 ## Environment Variables
 
 ```env
@@ -112,6 +140,14 @@ The application analyzes content for:
 - **Neutral indicators**: reported, documented, found, according, etc.
 - **Suspicious patterns**: absolutist language, unverified claims, etc.
 
+### Bias Alert System
+
+When an article's bias score exceeds 0.6 (60%), a prominent alert appears:
+- **Alert levels**: Moderate (60-70%), High (70-80%), Critical (80%+)
+- **Color-coded**: Yellow, Orange, Red respectively
+- **One-click AI fact-check**: Button to trigger fact-check verification
+- **Dismissable**: Hide alert for current session if desired
+
 ### Configuring External Fact-Checking
 
 1. Click the settings button (⚙️) in the bottom-right corner
@@ -124,8 +160,11 @@ The application analyzes content for:
 
 1. Select any text from an article
 2. A suggestions modal will appear
-3. Submit your suggested correction or improvement
-4. The article owner and community can vote on your suggestion
+3. Choose to submit to:
+   - **Episteme**: Community votes on the suggestion before applying
+   - **Wikipedia**: Queued for Wikipedia edit review (admin approval required)
+4. On approval, changes automatically appear on next article view
+5. Your contribution is credited to your user account
 
 ## API Endpoints
 
@@ -177,6 +216,8 @@ GET /api/auth/[...nextauth] - NextAuth handlers
 ```
 POST /api/suggestions - Submit article suggestions
 GET /api/suggestions?articleQuery=... - Get suggestions for an article
+PUT /api/suggestions - Vote/approve/reject suggestions
+POST /api/suggestions/wiki-submit - Submit to Wikipedia
 ```
 
 ## Architecture
