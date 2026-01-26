@@ -139,7 +139,6 @@ export const Header = ({
         </div>
       </motion.header>
 
-      {/* Mobile Sidebar */}
       {sidebarOpen && (
         <motion.div
           initial={{ x: -300, opacity: 0 }}
@@ -149,7 +148,6 @@ export const Header = ({
           className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-zinc-900 border-r border-zinc-800 z-30 lg:hidden overflow-y-auto"
         >
           <div className="p-4 space-y-4">
-            {/* Mobile Search */}
             <div className="md:hidden">
               <SearchBox 
                 onSearch={onSearch} 
@@ -158,7 +156,6 @@ export const Header = ({
               />
             </div>
 
-            {/* Auth Options */}
             {user ? (
               <div className="space-y-3 pt-4 border-t border-zinc-800">
                 <div className="flex items-center space-x-3 px-3 py-2 bg-zinc-800 rounded-md">
@@ -223,7 +220,6 @@ export const Header = ({
         </motion.div>
       )}
 
-      {/* Backdrop */}
       {sidebarOpen && (
         <motion.div
           initial={{ opacity: 0 }}

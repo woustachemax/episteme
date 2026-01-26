@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Welcome } from "./Welcome";
 import { motion } from 'framer-motion';
 import { Header } from "./Header";
 import { SearchResults } from "./SearchResults";
+import { FactCheckSettings } from "./FactCheckSettings";
 import AuthModal from "./AuthModal";
 
 type SearchResponse = {
@@ -48,13 +49,18 @@ export default function EpistemeApp() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000);
 
-      console.log(`[FETCH_START] Sending request to /api/search-stream`);
-      const response = await fetch('/api/search-stream', {
+      const useExternalFactCheck = localStorage.getItem('factcheck_use_external') === 'true';
+
+      console.log(`[FETCH_START] Sending request to /api/wiki`);
+      const response = await fetch('/api/wiki', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ 
+          query,
+          useExternalFactCheck 
+        }),
         signal: controller.signal
       });
 
@@ -190,7 +196,7 @@ export default function EpistemeApp() {
               onSignUp={() => setAuthModal({ isOpen: true, mode: 'signup' })}
               onLogoClick={handleLogoClick}
             />
-            <SearchResults results={searchResults} isLoading={isSearching} />
+            <SearchResults results={searchResults} isLoading={isSearching} currentQuery={searchQuery} />
           </motion.div>
         )}
       </motion.div>
@@ -201,6 +207,8 @@ export default function EpistemeApp() {
         mode={authModal.mode}
         onSubmit={handleAuth}
       />
+
+      <FactCheckSettings />
     </div>
   );
 }

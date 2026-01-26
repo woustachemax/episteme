@@ -24,8 +24,31 @@ type FactCheckResult = {
 type SearchResultsData = {
   query: string;
   content: string;
+  formatted?: {
+    title: string;
+    summary: string;
+    sections: Array<{
+      heading: string;
+      content: string;
+    }>;
+    keyFacts: string[];
+    metadata: {
+      wordCount: number;
+      categories: string[];
+      relatedTopics: string[];
+    };
+  };
   analysis?: AnalysisResult;
   factCheck?: FactCheckResult;
+  metadata?: {
+    factCheckAvailable?: {
+      local: boolean;
+      external: boolean;
+    };
+    categories?: string[];
+    relatedTopics?: string[];
+    wordCount?: number;
+  };
   cached?: boolean;
   suggestions?: unknown[];
 };
@@ -33,14 +56,14 @@ type SearchResultsData = {
 type SearchResultsProps = {
   results: SearchResultsData | null;
   isLoading: boolean;
+  currentQuery?: string;
 };
 
-export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
+export const SearchResults = ({ results, isLoading, currentQuery }: SearchResultsProps) => {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   useEffect(() => {
     const handleTextSelection = (e: MouseEvent) => {
-      // Only trigger if selection is within the article content div
       const articleContent = document.getElementById('article-content');
       if (!articleContent || !articleContent.contains(e.target as Node)) {
         return;
@@ -61,7 +84,7 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
   if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto px-6 py-12">
-        <AnimatedLoader query={results?.query || 'your query'} />
+        <AnimatedLoader query={currentQuery || results?.query || 'your query'} />
       </div>
     );
   }
@@ -98,68 +121,74 @@ export const SearchResults = ({ results, isLoading }: SearchResultsProps) => {
             id="article-content"
           >
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-medium text-white">Search Results</h2>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-white mb-2">{results.formatted?.title || results.query}</h1>
+                <p className="text-gray-400 text-sm">{results.formatted?.summary || results.query}</p>
+              </div>
               {results.cached && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-700 text-emerald-300 text-xs font-medium rounded-md">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-700 text-emerald-300 text-xs font-medium rounded-md ml-4">
                   <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
                   Cached
                 </span>
               )}
             </div>
-            <div className="prose prose-invert max-w-none">
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => (
-                    <h1 className="text-2xl font-semibold text-white mt-8 mb-4">{children}</h1>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className="text-xl font-semibold text-white mt-6 mb-3">{children}</h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className="text-lg font-medium text-white mt-4 mb-2">{children}</h3>
-                  ),
-                  p: ({ children }) => (
-                    <p className="text-gray-300 leading-relaxed mb-4">{children}</p>
-                  ),
-                  a: ({ href, children }) => (
-                    <a 
-                      href={href} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline transition-colors"
-                    >
-                      {children}
-                    </a>
-                  ),
-                  ul: ({ children }) => (
-                    <ul className="space-y-2 mb-4 ml-4">{children}</ul>
-                  ),
-                  ol: ({ children }) => (
-                    <ol className="space-y-2 mb-4 ml-4 list-decimal">{children}</ol>
-                  ),
-                  li: ({ children }) => (
-                    <li className="text-gray-300 leading-relaxed">• {children}</li>
-                  ),
-                  strong: ({ children }) => (
-                    <strong className="text-white font-semibold">{children}</strong>
-                  ),
-                  em: ({ children }) => (
-                    <em className="text-gray-200 italic">{children}</em>
-                  ),
-                  code: ({ children }) => (
-                    <code className="bg-zinc-800 text-blue-300 px-1.5 py-0.5 rounded text-sm">
-                      {children}
-                    </code>
-                  ),
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-zinc-700 pl-4 italic text-gray-400 my-4">
-                      {children}
-                    </blockquote>
-                  ),
-                }}
-              >
-                {results.content}
-              </ReactMarkdown>
+
+            {results.formatted?.keyFacts && results.formatted.keyFacts.length > 0 && (
+              <div className="bg-zinc-800/50 rounded-lg p-4 mb-6 border border-zinc-700">
+                <h3 className="text-sm font-semibold text-white mb-3">Key Facts</h3>
+                <ul className="space-y-2">
+                  {results.formatted.keyFacts.map((fact, idx) => (
+                    <li key={idx} className="text-sm text-gray-300 flex items-start gap-2">
+                      <span className="text-blue-400 font-bold min-w-fit">•</span>
+                      <span>{fact}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {results.formatted?.sections && results.formatted.sections.length > 0 ? (
+                results.formatted.sections.map((section, idx) => (
+                  <div key={idx} className="scroll-mt-4">
+                    <h2 className="text-xl font-semibold text-white mb-3">{section.heading}</h2>
+                    <div className="prose prose-invert max-w-none text-gray-300">
+                      <p className="leading-relaxed">{section.content}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => (
+                        <h1 className="text-2xl font-semibold text-white mt-8 mb-4">{children}</h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-xl font-semibold text-white mt-6 mb-3">{children}</h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-lg font-medium text-white mt-4 mb-2">{children}</h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="text-gray-300 leading-relaxed mb-4">{children}</p>
+                      ),
+                      a: ({ href, children }) => (
+                        <a 
+                          href={href} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-400 hover:text-blue-300 underline transition-colors"
+                        >
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {results.content}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
           </motion.div>
 
