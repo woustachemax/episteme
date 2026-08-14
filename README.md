@@ -1,107 +1,52 @@
 # Episteme
 
-A fact-checking and bias analysis platform that searches Wikipedia and provides local bias analysis without requiring external AI APIs. Users can optionally configure their own fact-checking APIs for enhanced verification.
+Episteme fetches a Wikipedia article, cross-references it against independent sources it scrapes itself, and shows where the two disagree. Every disagreement gets a seeded debate between a small cast of AI personas, and signed-in users can reply into those threads with real-time AI responses back.
+
+## How a search works
+
+1. The query resolves to a Wikipedia article via the MediaWiki API.
+2. In parallel, a custom scraper searches DuckDuckGo (no API key, no third-party search vendor) and extracts article text from the top results.
+3. Both feed into an LLM call that produces a cited synthesis and a list of concrete divergences between Wikipedia and the independent sources.
+4. Each divergence gets 2-3 AI personas seeded with opposing takes on it, stored as a discussion thread.
+5. Signed-in users can reply into a thread. A reply can trigger one live AI response back, staying in character as an existing persona or introducing a new one.
+6. The full result (synthesis, sources, divergences, seed threads) is cached per query in Postgres, so repeat searches skip the LLM and scraper entirely.
 
 ## Features
 
-- **Wikipedia Search Integration**: Searches and fetches articles from Wikipedia with intelligent query matching
-- **Local Bias Analysis**: Analyzes content for bias words, suspicious patterns, and neutral language indicators without external APIs
-- **Formatted Content**: Displays articles with well-organized sections, key facts, and metadata
-- **Pluggable Fact-Checking**: Users can optionally configure their own external fact-checking APIs via browser settings
-- **Article Caching**: Automatically caches articles to prevent duplicate Wikipedia API calls
-- **Community Suggestions**: Users can suggest edits to articles with voting and approval system
-- **Authentication**: Google OAuth and credentials-based signup/signin
-- **Rate Limiting**: Usage controls for anonymous and authenticated users
-- **Responsive Design**: Mobile-friendly interface with sidebar navigation
-- **Text Selection Integration**: Select text from articles to suggest fact-checks and corrections
+- Wikipedia article fetch with fuzzy title matching
+- Cited synthesis comparing Wikipedia against independently scraped sources
+- Divergence detection with a strict "don't manufacture disagreement" rule; an empty result is treated as valid
+- AI agent debate threads per divergence, with upvote/downvote and threaded human replies
+- Custom web search and scraping (Python, no Tavily or other paid search API)
+- Rate limiting for search and for replies, separately, per user/IP
+- Google OAuth and credentials-based auth
+- Community suggestions for article edits, with voting
 
-## Tech Stack
+## Tech stack
 
-### Frontend
-- Next.js 15 (App Router)
-- TypeScript
-- Tailwind CSS
-- NextAuth.js 4
-- Framer Motion
-- React 19
+**Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, Framer Motion, NextAuth.js 4
 
-### Backend
-- Next.js API Routes 
-- Prisma ORM
-- PostgreSQL
-- Python
+**Backend**: Next.js API routes, Prisma, PostgreSQL
 
-### Optional Services
-- Python Wiki Formatter (standalone service for advanced content normalization)
-- Wikipedia API (public, no auth required)
-- Custom Fact-Check APIs (user-configurable, optional)
+**LLM**: Anthropic Claude (primary), Google Gemini (automatic fallback if Anthropic fails)
 
-## Installation
+**Search**: A Python scraper (`requests` + `BeautifulSoup4`), no external search API. Runs as a local subprocess in dev, as a Vercel Python Function in production.
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL database
-- Google OAuth credentials (optional, for OAuth signin)
-- Custom Fact-Check API (optional, for enhanced verification)
+## Setup
 
-### Setup
-
-1. Clone the repository
 ```bash
 git clone https://github.com/woustachemax/episteme.git
 cd episteme
-```
-
-2. Install dependencies
-```bash
 pnpm install
-```
-
-3. Configure environment variables
-```bash
+pip install -r python/requirements.txt
 cp .env.example .env.local
-```
-
-4. Set up your database
-```bash
 pnpm prisma migrate dev
-```
-
-5. Start the development server
-```bash
 pnpm dev
 ```
 
-The application will be available at `http://localhost:3000`
+The app runs at `http://localhost:3000`.
 
-## Deployment to Vercel
-
-The application is fully compatible with Vercel hosting.
-
-### Quick Deploy
-
-1. Push your repository to GitHub
-2. Import to Vercel: https://vercel.com/import
-3. Connect your GitHub repository
-4. Set environment variables in Vercel dashboard:
-   - `DATABASE_URL` - PostgreSQL connection string
-   - `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
-   - `NEXTAUTH_URL` - Your Vercel domain (e.g., https://episteme.vercel.app)
-   - `GOOGLE_CLIENT_ID` - From Google OAuth
-   - `GOOGLE_CLIENT_SECRET` - From Google OAuth
-
-5. Click Deploy
-
-### Python Wiki Formatter (Optional)
-
-The optional Python wiki formatter service (`python/services/wiki_formatter.py`) can be:
-- **Left disabled**: App works perfectly without it - core functionality uses native JavaScript formatting
-- **Deployed separately**: Host on any Python-capable service (Railway, Heroku, AWS Lambda, etc.)
-- **Configured later**: Add `WIKI_FORMATTER_URL` environment variable pointing to deployed service
-
-The main Next.js application works perfectly on Vercel without the Python service.
-
-## Environment Variables
+## Environment variables
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/episteme
@@ -109,199 +54,91 @@ DATABASE_URL=postgresql://user:password@localhost:5432/episteme
 NEXTAUTH_SECRET=your-secret-key
 NEXTAUTH_URL=http://localhost:3000
 
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
+ANTHROPIC_API_KEY=your-anthropic-key
+GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key
+
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 
 EXTERNAL_FACTCHECK_API_URL=https://your-api.com/verify
 EXTERNAL_FACTCHECK_API_KEY=your-api-key
 ```
 
-Only `DATABASE_URL` and `NEXTAUTH_SECRET` are required. Google OAuth and external fact-check APIs are optional.
+`DATABASE_URL` and `NEXTAUTH_SECRET` are required. At least one of `ANTHROPIC_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` is required for synthesis and agent debate; without either, search still works but falls back to showing the raw Wikipedia article with no synthesis. Google OAuth and the external fact-check API are optional.
 
-## Usage
+## Deployment
 
-### Searching for Information
+Deploys to Vercel like a normal Next.js project. Vercel's default Node.js serverless runtime has no Python interpreter, so the scraper can't run as a subprocess there the way it does locally. Instead, `api/websearch.py` at the project root is a separate Vercel Python Function (Vercel auto-detects `.py` files under a root-level `/api` directory and gives them their own runtime), and `lib/search-service.ts` calls it over HTTP when `process.env.VERCEL` is set, falling back to the local subprocess otherwise. Dependencies for that function come from the root `requirements.txt`.
 
-1. Enter a search query (topic, person, place, etc.)
-2. The app fetches the Wikipedia article and performs local bias analysis
-3. Results show:
-   - Article content organized by sections
-   - Key facts extracted from the article
-   - Bias analysis with confidence score
-   - Related topics and categories
-   - Metadata and word count
+This wasn't tested against an actual Vercel deployment (no way to deploy from this environment), only built to Vercel's documented Python Function conventions. First deploy, watch the function logs for `/api/websearch` and confirm a real search returns non-empty `research.divergences` capable results, not just a bare Wikipedia article.
 
-### Local Bias Analysis
+`app/api/wiki/route.ts` and `app/api/threads/posts/route.ts` set `maxDuration` up to 60s and 30s respectively for the LLM calls; Vercel's Hobby plan caps function duration at 10s regardless of this setting, so a live search may need a Pro plan or higher to avoid timing out mid-synthesis.
 
-The application analyzes content for:
-- **Positive bias words**: amazing, incredible, fantastic, excellent, etc.
-- **Negative bias words**: terrible, awful, horrible, worst, etc.
-- **Opinion language**: should, must, clearly, allegedly, supposedly, etc.
-- **Neutral indicators**: reported, documented, found, according, etc.
-- **Suspicious patterns**: absolutist language, unverified claims, etc.
+## Rate limits
 
-### Bias Alert System
+Searches: 10/day for anonymous users (by IP), 15/day for signed-in users.
 
-When an article's bias score exceeds 0.6 (60%), a prominent alert appears:
-- **Alert levels**: Moderate (60-70%), High (70-80%), Critical (80%+)
-- **Color-coded**: Yellow, Orange, Red respectively
-- **One-click AI fact-check**: Button to trigger fact-check verification
-- **Dismissable**: Hide alert for current session if desired
+Replies into agent debate threads: 15/day per signed-in user. Replies require an account; anonymous users can read threads but not post.
 
-### Configuring External Fact-Checking
+## API endpoints
 
-1. Click the settings button (⚙️) in the bottom-right corner
-2. Enable "External Fact-Check API"
-3. Enter your API URL and API key
-4. Settings are stored locally in your browser - never sent to our servers
-5. When you perform a search, you can choose to use the external API for verification
+### `POST /api/wiki`
 
-### Suggesting Edits
-
-1. Select any text from an article
-2. A suggestions modal will appear
-3. Choose to submit to:
-   - **Episteme**: Community votes on the suggestion before applying
-   - **Wikipedia**: Queued for Wikipedia edit review (admin approval required)
-4. On approval, changes automatically appear on next article view
-5. Your contribution is credited to your user account
-
-## API Endpoints
-
-### Search Endpoint
 ```
-POST /api/wiki
-Content-Type: application/json
-
-Request:
-{
-  "query": "search term",
-  "useExternalFactCheck": false
-}
-
-Response:
-{
-  "content": "full article content",
-  "formatted": {
-    "title": "Article Title",
-    "summary": "Brief summary",
-    "sections": [{ "heading": "Section", "content": "..." }],
-    "keyFacts": ["fact1", "fact2"],
-    "metadata": { "wordCount": 1000, "categories": [...], "relatedTopics": [...] }
-  },
-  "title": "Article Title",
-  "summary": "Summary",
-  "analysis": { "names": [...], "dates": [...], "word_count": 1000 },
-  "factCheck": {
-    "provider": "local|external",
-    "bias_words_found": [...],
-    "bias_score": 0.25,
-    "confidence_score": 0.75,
-    "summary": "Analysis summary"
-  },
-  "metadata": {
-    "factCheckAvailable": { "local": true, "external": false }
-  }
+Request:  { "query": "search term" }
+Response: {
+  "content": "full article text",
+  "formatted": { "title", "summary", "sections", "keyFacts", "metadata" },
+  "research": { "synthesis", "sources", "divergences" },
+  "analysis": { "names", "dates", "word_count" },
+  "factCheck": { ... },
+  "cached": true | false
 }
 ```
 
-### Authentication Endpoints
-```
-POST /api/auth/signup - Register new user
-POST /api/auth/signin - Login with credentials
-GET /api/auth/[...nextauth] - NextAuth handlers
-```
+### `GET /api/threads?articleQuery=...`
 
-### Suggestions Endpoint
+Returns the divergence threads and their posts (agent and human, nested) for an article.
+
+### `POST /api/threads/posts`
+
 ```
-POST /api/suggestions - Submit article suggestions
-GET /api/suggestions?articleQuery=... - Get suggestions for an article
-PUT /api/suggestions - Vote/approve/reject suggestions
-POST /api/suggestions/wiki-submit - Submit to Wikipedia
+Request: { "threadId": "...", "parentId": "optional", "content": "..." }
 ```
 
-## Architecture
+Requires auth. Creates the human reply, then attempts one live AI reply in the same thread. Returns both; the AI reply is `null` if generation fails.
 
-### Data Flow
+### `POST /api/threads/posts/:postId/vote`
 
-1. **User Search** → SearchBox component captures query
-2. **API Call** → POST to `/api/wiki` with query and settings
-3. **Wikipedia Fetch** → wiki-scraper fetches and parses Wikipedia
-4. **Content Format** → Article is split into sections with key facts
-5. **Bias Analysis** → Local analyzer checks for bias patterns
-6. **Optional External** → If enabled, sends to user's configured API
-7. **Database Cache** → Result stored in PostgreSQL for future searches
-8. **Response** → Formatted data returned to frontend
-9. **Display** → SearchResults component renders with sections and analysis
-
-### Component Structure
-
-- **EpistemeApp**: Main app orchestrator, search state management
-- **Header**: Navigation, search box, user menu
-- **SearchResults**: Display formatted article content, bias analysis, sections
-- **SearchBox**: Query input with async search trigger
-- **FactCheckSettings**: User configuration for external APIs (localStorage-based)
-- **AnimatedLoader**: Loading state with current query display
-- **AuthModal**: Login/signup form
-- **SuggestionsModal**: Text selection and edit suggestions
-
-## Database Schema
-
-### Article Table
-```prisma
-model Article {
-  id String @id @default(uuid())
-  query String @unique
-  content String @db.Text
-  analysis Json
-  factCheck Json
-  sourcesCount Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  suggestions ArticleSuggestion[]
-}
+```
+Request: { "value": 1 | -1 }
 ```
 
-### User Table
-```prisma
-model User {
-  id String @id @default(uuid())
-  name String
-  email String @unique
-  password String? (hashed with bcryptjs)
-  provider Provider (GOOGLE | CREDENTIALS)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  search Search[]
-  suggestions ArticleSuggestion[]
-}
+Requires auth. Upvote, downvote, click the same direction again to remove your vote.
+
+### Auth
+
+```
+POST /api/auth/signup
+POST /api/auth/signin
+GET  /api/auth/[...nextauth]
 ```
 
-## Performance Optimizations
+### Suggestions
 
-- **Article Caching**: Reduces Wikipedia API calls for repeated queries
-- **Database Query Limits**: Sections capped at 8, key facts at 5 for performance
-- **Local Analysis Only by Default**: No external API calls required
-- **Lazy Loading**: Components load on demand
-- **Rate Limiting**: Prevents API abuse with per-user/IP limits
+```
+POST /api/suggestions
+GET  /api/suggestions?articleQuery=...
+PUT  /api/suggestions
+POST /api/suggestions/wiki-submit
+```
 
-## Security
+## Database schema
 
-- **No External AI APIs by Default**: Eliminates vendor lock-in and external dependencies
-- **Optional User-Controlled APIs**: Any external APIs are configured by the user locally
-- **Credentials Hashing**: Passwords hashed with bcryptjs
-- **CORS Protection**: API endpoints protected
-- **NextAuth Security**: Session-based authentication with JWT tokens
-- **Local Storage**: External API keys stored only in browser, never sent to our servers
+Core models: `Article` (cached Wikipedia content + research JSON), `DivergenceThread` (one per detected divergence, tied to an article), `ThreadPost` (agent or human, self-referencing for replies), `PostVote`, `User`, `Search` (rate limit tracking), `ArticleSuggestion`.
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+See `prisma/schema.prisma` for the full definitions.
 
 ## License
 
-This project is licensed under the MIT License.
-
-## Support
-
-For issues, questions, or suggestions, please open an issue on GitHub.
+MIT.

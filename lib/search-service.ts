@@ -1,80 +1,73 @@
-interface TavilyResponse {
-    results: Array<{
-        title: string;
-        url: string;
-        content: string;
-        score: number;
-    }>;
+import { spawn } from "child_process";
+import path from "path";
+
+export interface WebSource {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
 }
 
-export async function searchWeb(query: string, entityContext?: string[]): Promise<string> {
-    try {
-        const searchQueries = [`"${query}"`];
+export async function searchWebSources(query: string): Promise<WebSource[]> {
+  if (process.env.VERCEL) {
+    return searchViaVercelFunction(query);
+  }
+  return searchViaLocalPython(query);
+}
 
-        const searchPromises = searchQueries.map(searchQuery => 
-            fetch('https://api.tavily.com/search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    api_key: process.env.TAVILY_API_KEY,
-                    query: searchQuery,
-                    search_depth: 'basic', 
-                    include_answer: false,
-                    max_results: 8, 
-                    include_domains: [],
-                    exclude_domains: [
-                        'reddit.com',
-                        'quora.com',
-                        'answers.yahoo.com',
-                        'wikipedia.org'
-                    ]
-                })
-            }).then(async response => {
-                if (!response.ok) {
-                    console.error(`Tavily API error for query "${searchQuery}":`, response.status);
-                    return null;
-                }
-                const data: TavilyResponse = await response.json();
-                return data.results;
-            }).catch(err => {
-                console.error(`Search failed for "${searchQuery}":`, err);
-                return null;
-            })
-        );
-
-        const resultsArrays = await Promise.all(searchPromises);
-        
-        const allResults = resultsArrays
-            .filter((results): results is Array<{ title: string; url: string; content: string; score: number }> => 
-                results !== null
-            )
-            .flat();
-
-        if (allResults.length === 0) {
-            throw new Error('No search results found');
-        }
-
-        const uniqueResults = Array.from(
-            new Map(allResults.map(item => [item.url, item])).values()
-        ).sort((a, b) => b.score - a.score);
-
-        const formattedResults = uniqueResults
-            .map((result, index) => {
-                return `
-        SOURCE ${index + 1}: ${result.title}
-        URL: ${result.url}
-        CONTENT: ${result.content}
-        RELEVANCE SCORE: ${result.score}
-        ---`;
-            })
-            .join('\n');
-
-        return formattedResults;
-
-    } catch (error) {
-        console.error('Search error:', error);
-        throw new Error('Failed to fetch web search results');
+async function searchViaVercelFunction(query: string): Promise<WebSource[]> {
+  try {
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "";
+    const response = await fetch(`${baseUrl}/api/websearch?query=${encodeURIComponent(query)}`, {
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) {
+      console.error("Vercel Python search function returned", response.status);
+      return [];
     }
+    const parsed = await response.json();
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Vercel Python search function failed:", error);
+    return [];
+  }
+}
+
+async function searchViaLocalPython(query: string): Promise<WebSource[]> {
+  return new Promise((resolve) => {
+    const scriptPath = path.join(process.cwd(), "python/services/web_search.py");
+    const python = spawn("python3", [scriptPath, "--query", query]);
+
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      python.kill();
+      resolve([]);
+    }, 15000);
+
+    python.stdout.on("data", (data) => { stdout += data.toString(); });
+    python.stderr.on("data", (data) => { stderr += data.toString(); });
+
+    python.on("close", (code) => {
+      clearTimeout(timeout);
+      if (code !== 0) {
+        console.error("Web search script failed:", stderr);
+        resolve([]);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(stdout);
+        resolve(Array.isArray(parsed) ? parsed : []);
+      } catch (error) {
+        console.error("Failed to parse web search output:", error);
+        resolve([]);
+      }
+    });
+
+    python.on("error", (error) => {
+      clearTimeout(timeout);
+      console.error("Failed to start web search process:", error);
+      resolve([]);
+    });
+  });
 }

@@ -1,7 +1,13 @@
 {
   "functions": {
-    "app/api/search-stream/route.ts": {
-      "maxDuration": 120
+    "app/api/wiki/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/threads/posts/route.ts": {
+      "maxDuration": 30
+    },
+    "api/websearch.py": {
+      "maxDuration": 30
     }
   }
 }

@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { canSearch, recordSearch } from "@/lib/rate-limit";
-import { getWikiArticleWithBiasAnalysis } from "@/lib/wiki-scraper";
+import { getWikiArticleWithBiasAnalysis, analyzeBias, type FormattedContent } from "@/lib/wiki-scraper";
+import { synthesizeResearch, type ResearchResult } from "@/lib/research-synthesis";
+import { searchWebSources } from "@/lib/search-service";
+import { persistSeedThreads } from "@/lib/agent-threads";
 import db from "@/lib/db";
+import type { Prisma } from "@prisma/client";
+
+export const maxDuration = 60;
+
+type ArticleWithApprovedSuggestions = Prisma.ArticleGetPayload<{
+  include: { suggestions: true };
+}>;
 
 interface FactCheckResult {
   provider: string;
@@ -117,6 +127,66 @@ export async function POST(req: NextRequest) {
 
     recordSearch({ userId, ipAddress: ip, query }).catch(() => {});
 
+    const normalizedQuery = query.toLowerCase();
+
+    const existingArticle = await db.article.findUnique({
+      where: { query: normalizedQuery },
+      include: { suggestions: { where: { status: 'APPROVED' } } }
+    }).catch((): ArticleWithApprovedSuggestions | null => null);
+
+    const cachedResearchCandidate = existingArticle?.research as ResearchResult | null | undefined;
+    const willUseCachedResearch = Boolean(cachedResearchCandidate && cachedResearchCandidate.sources?.length);
+    const cachedFormatted = existingArticle?.formatted as FormattedContent | null | undefined;
+    const hasFullCache = Boolean(
+      existingArticle && willUseCachedResearch && cachedFormatted && !useAIFactCheck && !useExternalFactCheck
+    );
+
+    if (hasFullCache && existingArticle) {
+      const content = existingArticle.suggestions.length > 0
+        ? applyApprovedChanges(existingArticle.content, existingArticle.suggestions)
+        : existingArticle.content;
+      const biasAnalysis = analyzeBias(content);
+      const formatted = cachedFormatted!;
+
+      return NextResponse.json({
+        content,
+        formatted,
+        title: formatted.title,
+        summary: formatted.summary,
+        query,
+        analysis: {
+          names: formatted.metadata.categories.slice(0, 10),
+          dates: formatted.metadata.categories.slice(0, 10),
+          word_count: formatted.metadata.wordCount
+        },
+        factCheck: {
+          provider: 'local',
+          bias_words_found: biasAnalysis.biasWordsFound,
+          bias_score: biasAnalysis.biasScore,
+          confidence_score: biasAnalysis.confidence,
+          total_claims: biasAnalysis.totalBiasWords,
+          suspicious_patterns: biasAnalysis.suspiciousPatterns,
+          summary: biasAnalysis.summary,
+          external_sources: []
+        },
+        metadata: {
+          categories: formatted.metadata.categories,
+          relatedTopics: formatted.metadata.relatedTopics,
+          wordCount: formatted.metadata.wordCount,
+          factCheckAvailable: {
+            local: true,
+            external: Boolean(process.env.EXTERNAL_FACTCHECK_API_KEY)
+          }
+        },
+        research: cachedResearchCandidate,
+        cached: true
+      });
+    }
+
+    const searchPromise = willUseCachedResearch
+      ? Promise.resolve([])
+      : searchWebSources(query).catch(() => []);
+
     const result = await getWikiArticleWithBiasAnalysis(query);
 
     if (!result.success || !result.article || !result.biasAnalysis || !result.metadata || !result.formatted) {
@@ -133,7 +203,7 @@ export async function POST(req: NextRequest) {
 
     let factCheckProvider = 'local';
     let externalSources: string[] = [];
-    
+
     if (useAIFactCheck && openaiKey) {
       const aiResult = await checkAIFactCheck(article.content, article.title, openaiKey);
       if (aiResult) {
@@ -148,28 +218,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    try {
-      const existingArticle = await db.article.findUnique({
-        where: { query: query.toLowerCase() }
-      });
+    if (existingArticle?.suggestions && existingArticle.suggestions.length > 0) {
+      article.content = applyApprovedChanges(article.content as string, existingArticle.suggestions);
+    }
 
-      if (existingArticle) {
-        const approvedSuggestions = await db.articleSuggestion.findMany({
-          where: { 
-            articleId: existingArticle.id,
-            status: 'APPROVED'
-          }
+    const research: ResearchResult = willUseCachedResearch
+      ? cachedResearchCandidate!
+      : await synthesizeResearch(query, article, await searchPromise).catch((error) => {
+          console.error("Research synthesis failed:", error);
+          const wikipediaUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title.replace(/ /g, '_'))}`;
+          return {
+            synthesis: '',
+            sources: [{ index: 1, type: 'wikipedia' as const, title: article.title, url: wikipediaUrl }],
+            divergences: []
+          };
         });
 
-        if (approvedSuggestions.length > 0) {
-          article.content = applyApprovedChanges(article.content as string, approvedSuggestions);
-        }
-      }
+    const responseFormatted = {
+      title: formatted.title,
+      summary: formatted.summary,
+      sections: formatted.sections.map(s => ({
+        heading: s.heading,
+        content: s.content
+      })),
+      keyFacts: formatted.keyFacts,
+      metadata: formatted.metadata
+    };
 
-      await db.article.upsert({
-        where: { query: query.toLowerCase() },
+    try {
+      const upsertedArticle = await db.article.upsert({
+        where: { query: normalizedQuery },
         create: {
-          query: query.toLowerCase(),
+          query: normalizedQuery,
           content: article.content,
           sourcesCount: metadata.relatedTopics.length,
           analysis: JSON.stringify({
@@ -189,25 +269,24 @@ export async function POST(req: NextRequest) {
             summary: biasAnalysis.summary,
             total_bias_words: biasAnalysis.totalBiasWords,
             external_sources: externalSources
-          })
+          }),
+          research: research as object,
+          formatted: responseFormatted as object
         },
-        update: {}
+        update: willUseCachedResearch ? { formatted: responseFormatted as object } : { research: research as object, formatted: responseFormatted as object }
       });
+
+      if (!willUseCachedResearch) {
+        await persistSeedThreads(upsertedArticle.id, research.divergences).catch((error) => {
+          console.error("Failed to seed divergence threads:", error);
+        });
+      }
     } catch (dbErr) {
     }
 
     return NextResponse.json({
       content: article.content,
-      formatted: {
-        title: formatted.title,
-        summary: formatted.summary,
-        sections: formatted.sections.map(s => ({
-          heading: s.heading,
-          content: s.content
-        })),
-        keyFacts: formatted.keyFacts,
-        metadata: formatted.metadata
-      },
+      formatted: responseFormatted,
       title: article.title,
       summary: article.summary,
       query,
@@ -234,7 +313,9 @@ export async function POST(req: NextRequest) {
           local: true,
           external: Boolean(process.env.EXTERNAL_FACTCHECK_API_KEY)
         }
-      }
+      },
+      research,
+      cached: willUseCachedResearch
     });
 
   } catch (error) {

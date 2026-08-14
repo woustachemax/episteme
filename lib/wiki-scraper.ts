@@ -282,13 +282,13 @@ export function formatWikipediaContent(article: WikiArticle): FormattedContent {
   for (let i = sectionStartIdx; i < lines.length; i++) {
     const line = lines[i];
     
-    if (line.startsWith('==') && line.endsWith('==')) {
+    if (/^#+\s+/.test(line)) {
       if (currentSection.content.trim()) {
         sections.push({ ...currentSection });
       }
-      currentHeading = line.replace(/==/g, '').trim();
+      currentHeading = line.replace(/^#+\s*/, '').trim();
       currentSection = { heading: currentHeading, content: '' };
-    } 
+    }
     else if (line.match(/^[\*•\-]\s+/)) {
       keyFacts.push(line.replace(/^[\*•\-]\s+/, '').trim());
       currentSection.content += (currentSection.content ? '\n' : '') + line;

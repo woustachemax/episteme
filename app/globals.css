@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 html, body {
-  font-family: 'Times New Roman', Times, serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   overflow-y: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -15,7 +15,6 @@ body::-webkit-scrollbar {
 }
 
 * {
-  font-family: 'Times New Roman', Times, serif;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

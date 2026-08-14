@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { Welcome } from "./Welcome";
 import { motion } from 'framer-motion';
@@ -9,11 +9,44 @@ import { SearchResults } from "./SearchResults";
 import { FactCheckSettings } from "./FactCheckSettings";
 import AuthModal from "./AuthModal";
 
+type ResearchSource = {
+  index: number;
+  type: 'wikipedia' | 'independent';
+  title: string;
+  url: string;
+};
+
+type ResearchDivergence = {
+  claim: string;
+  wikipediaSays: string;
+  independentSays: string;
+  citationIndexes: number[];
+};
+
+type ResearchResult = {
+  synthesis: string;
+  sources: ResearchSource[];
+  divergences: ResearchDivergence[];
+};
+
 type SearchResponse = {
   query: string;
   content: string;
-  analysis?: Record<string, unknown>;  
-  factCheck?: Record<string, unknown>; 
+  formatted?: {
+    title: string;
+    summary: string;
+    sections: Array<{ heading: string; content: string }>;
+    keyFacts: string[];
+    metadata: {
+      wordCount: number;
+      categories: string[];
+      relatedTopics: string[];
+    };
+  };
+  analysis?: Record<string, unknown>;
+  factCheck?: Record<string, unknown>;
+  research?: ResearchResult;
+  cached?: boolean;
 };
 
 type AuthModalState = {
@@ -140,35 +173,7 @@ export default function EpistemeApp() {
   return (
     <div className="min-h-screen bg-black text-white relative">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div 
-          animate={{ 
-            x: [0, 100, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.2, 1],
-            opacity: [0.02, 0.05, 0.02] 
-          }}
-          transition={{ 
-            duration: 20, 
-            repeat: Infinity, 
-            ease: "easeInOut" 
-          }}
-          className="absolute top-1/3 left-1/3 w-96 h-96 bg-white rounded-full blur-3xl"
-        />
-        <motion.div 
-          animate={{ 
-            x: [0, -80, 0],
-            y: [0, -30, 0],
-            scale: [1.2, 1, 1.2],
-            opacity: [0.02, 0.04, 0.02] 
-          }}
-          transition={{ 
-            duration: 25, 
-            repeat: Infinity, 
-            ease: "easeInOut", 
-            delay: 5 
-          }}
-          className="absolute bottom-1/3 right-1/3 w-80 h-80 bg-gray-400 rounded-full blur-3xl"
-        />
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-white rounded-full blur-3xl opacity-[0.02]" />
       </div>
 
       <motion.div
@@ -199,7 +204,12 @@ export default function EpistemeApp() {
               onSignUp={() => setAuthModal({ isOpen: true, mode: 'signup' })}
               onLogoClick={handleLogoClick}
             />
-            <SearchResults results={searchResults} isLoading={isSearching} currentQuery={searchQuery} />
+            <SearchResults
+              results={searchResults}
+              isLoading={isSearching}
+              currentQuery={searchQuery}
+              onRequestAuth={() => setAuthModal({ isOpen: true, mode: 'signin' })}
+            />
           </motion.div>
         )}
       </motion.div>

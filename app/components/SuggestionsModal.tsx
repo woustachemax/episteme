@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 
 type Suggestion = {
   id: string;
@@ -21,13 +21,15 @@ type SuggestionsModalProps = {
   content: string;
   isOpen: boolean;
   onClose: () => void;
+  onRequestAuth: () => void;
 };
 
 export const SuggestionsModal = ({
   articleQuery,
   content,
   isOpen,
-  onClose
+  onClose,
+  onRequestAuth
 }: SuggestionsModalProps) => {
   const { data: session } = useSession();
   const [selectedText, setSelectedText] = useState('');
@@ -234,7 +236,7 @@ export const SuggestionsModal = ({
                   <p className="text-sm text-red-300/70 mt-1">Please sign in to submit suggestions</p>
                 </div>
                 <button
-                  onClick={() => signIn()}
+                  onClick={onRequestAuth}
                   className="ml-4 bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium"
                 >
                   Sign In
@@ -294,7 +296,7 @@ export const SuggestionsModal = ({
 
               <div className="flex gap-3">
                 <button
-                  onClick={!session ? () => signIn(undefined, { callbackUrl: window.location.href }) : handleSubmitSuggestion}
+                  onClick={!session ? onRequestAuth : handleSubmitSuggestion}
                   disabled={!!session && (isLoading || !selectedText || !newText || !reason)}
                   className={`flex-1 font-semibold py-3 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
                     !session 

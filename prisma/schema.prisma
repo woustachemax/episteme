@@ -17,6 +17,8 @@ model User{
   updatedAt  DateTime  @updatedAt
   search Search[]
   suggestions ArticleSuggestion[]
+  threadPosts ThreadPost[]
+  postVotes PostVote[]
 }
 
 enum Provider{
@@ -39,10 +41,13 @@ model Article {
   content String @db.Text
   analysis Json
   factCheck Json
+  research Json?
+  formatted Json?
   sourcesCount Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   suggestions ArticleSuggestion[]
+  divergenceThreads DivergenceThread[]
 }
 
 model ArticleSuggestion {
@@ -64,4 +69,56 @@ enum SuggestionStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model DivergenceThread {
+  id              String   @id @default(uuid())
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId       String
+  divergenceIndex Int
+  claim           String   @db.Text
+  wikipediaSays   String   @db.Text
+  independentSays String   @db.Text
+  citationIndexes Int[]
+  posts           ThreadPost[]
+  createdAt       DateTime @default(now())
+
+  @@unique([articleId, divergenceIndex])
+}
+
+model ThreadPost {
+  id           String   @id @default(uuid())
+  thread       DivergenceThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  threadId     String
+  parent       ThreadPost? @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId     String?
+  replies      ThreadPost[] @relation("Replies")
+  authorType   PostAuthorType
+  authorUser   User?    @relation(fields: [authorUserId], references: [id])
+  authorUserId String?
+  agentName    String?
+  agentStance  String?
+  content      String   @db.Text
+  votes        Int      @default(0)
+  createdAt    DateTime @default(now())
+  votesCast    PostVote[]
+
+  @@index([threadId])
+  @@index([parentId])
+}
+
+enum PostAuthorType {
+  AGENT
+  HUMAN
+}
+
+model PostVote {
+  id     String @id @default(uuid())
+  post   ThreadPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  value  Int
+
+  @@unique([postId, userId])
 }
